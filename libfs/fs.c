@@ -7,6 +7,10 @@
 #include "disk.h"
 #include "fs.h"
 
+#define FS_FILENAME_LEN 16
+#define FS_FILE_MAX_COUNT 128
+#define FAT_EOC 0xFFFF
+
 struct Superblock
 {
 	char signature[8];	   // Signature (must be equal to "ECS150FS")
@@ -17,6 +21,17 @@ struct Superblock
 	uint8_t fat_blocks;	   // Number of blocks for FAT
 	uint8_t padding[4079]; // Unused/Padding
 } __attribute__((packed)); // Ensure packed attribute for correct layout
+
+struct RootDirectory
+{
+	char filename[16];
+	uint32_t size;
+	uint16_t first_block;
+	char padding[10];
+} __attribute__((packed));
+
+struct RootDirectory root_directory[FS_FILE_MAX_COUNT];
+int root_dir_count = 0;
 
 int fs_mount(const char *diskname)
 {
@@ -62,7 +77,32 @@ int fs_info(void)
 
 int fs_create(const char *filename)
 {
-	/* TODO: Phase 2 */
+	// Find an empty entry in the root directory
+	int empty_entry_index = -1;
+	for (int i = 0; i < FS_FILE_MAX_COUNT; i++)
+	{
+		if (strcmp(root_directory[i].filename, "") == 0)
+		{
+			empty_entry_index = i;
+			break;
+		}
+	}
+
+	// If no empty entry is found, return -1
+	if (empty_entry_index == -1)
+	{
+		return -1;
+	}
+
+	// Fill out the empty entry with the new filename
+	strcpy(root_directory[empty_entry_index].filename, filename);
+	root_directory[empty_entry_index].size = 0;
+	root_directory[empty_entry_index].first_block = FAT_EOC;
+
+	// Increment the count of files in the root directory
+	root_dir_count++;
+
+	return 0;
 }
 
 int fs_delete(const char *filename)
