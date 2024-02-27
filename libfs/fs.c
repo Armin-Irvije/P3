@@ -38,20 +38,26 @@ int fs_mount(const char *diskname)
 	return 0;
 }
 
-int fs_umount(void) {
-	
-    // Close the virtual disk file
-    if (block_disk_close() == -1) {
-        fprintf(stderr, "Failed to close virtual disk file\n");
-        return -1;
-    }
+int fs_umount(void)
+{
 
-    return 0;
+	// Close the virtual disk file
+	if (block_disk_close() == -1)
+	{
+		fprintf(stderr, "Failed to close virtual disk file\n");
+		return -1;
+	}
+
+	return 0;
 }
 
 int fs_info(void)
 {
-	/* TODO: Phase 1 */
+	if (block_disk_count() == -1)
+	{
+		fprintf(stderr, "No underlying virtual disk was opened\n");
+		return -1;
+	}
 }
 
 int fs_create(const char *filename)
