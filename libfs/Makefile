@@ -1,31 +1,21 @@
-CC = gcc
-CFLAGS = -Wall -Wextra -std=c99
+# library
+lib := libfs.a
 
-# Object files
-OBJS = tester.o fs.o disk.o
+CC := gcc
+CFLAGS := -Wall -Wextra -Werror
 
-# Executable name
-EXEC = tester
+# Source files
 
-# Default rule to compile the executable
-all: $(EXEC)
+source := disk.c fs.c
+obj := $(source:.c=.o)
 
-# Rule to compile tester.o
-tester.o: tester.c fs.h disk.h
-	$(CC) $(CFLAGS) -c tester.c
+all: $(lib)
+#puts the object files into the library
+$(lib): $(obj)
+	ar rcs $@ $^ 
 
-# Rule to compile fs.o
-fs.o: fs.c fs.h disk.h
-	$(CC) $(CFLAGS) -c fs.c
-
-# Rule to compile disk.o
-disk.o: disk.c disk.h
-	$(CC) $(CFLAGS) -c disk.c
-
-# Rule to link the object files and create the executable
-$(EXEC): $(OBJS)
-	$(CC) $(CFLAGS) $(OBJS) -o $(EXEC)
-
-# Clean rule to remove object files and the executable
+%.o: %.c
+	$(CC) $(CFLAGS) -c -o $@ $<
+#clean all object files
 clean:
-	rm -f $(OBJS) $(EXEC)
+	rm -f *~ $(obj) $(lib)

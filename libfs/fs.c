@@ -73,6 +73,7 @@ int fs_info(void)
 		fprintf(stderr, "No underlying virtual disk was opened\n");
 		return -1;
 	}
+	return 0;
 }
 
 int fs_create(const char *filename)
@@ -105,42 +106,62 @@ int fs_create(const char *filename)
 	return 0;
 }
 
-// int fs_delete(const char *filename)
-// {
-// 	/* TODO: Phase 2 */
-// }
+int fs_delete(const char *filename)
+{
+    /* TODO: Phase 2 */
+    (void)filename; // Dummy variable to avoid unused parameter warning
+    return 0;
+}
 
-// int fs_ls(void)
-// {
-// 	/* TODO: Phase 2 */
-// }
+int fs_ls(void)
+{
+    /* TODO: Phase 2 */
+    return 0;
+}
 
-// int fs_open(const char *filename)
-// {
-// 	/* TODO: Phase 3 */
-// }
+int fs_open(const char *filename)
+{
+    /* TODO: Phase 3 */
+    (void)filename; // Dummy variable to avoid unused parameter warning
+    return 0;
+}
 
-// int fs_close(int fd)
-// {
-// 	/* TODO: Phase 3 */
-// }
+int fs_close(int fd)
+{
+    /* TODO: Phase 3 */
+    (void)fd; // Dummy variable to avoid unused parameter warning
+    return 0;
+}
 
-// int fs_stat(int fd)
-// {
-// 	/* TODO: Phase 3 */
-// }
+int fs_stat(int fd)
+{
+    /* TODO: Phase 3 */
+    (void)fd; // Dummy variable to avoid unused parameter warning
+    return 0;
+}
 
-// int fs_lseek(int fd, size_t offset)
-// {
-// 	/* TODO: Phase 3 */
-// }
+int fs_lseek(int fd, size_t offset)
+{
+    /* TODO: Phase 3 */
+    (void)fd; // Dummy variable to avoid unused parameter warning
+    (void)offset; // Dummy variable to avoid unused parameter warning
+    return 0;
+}
 
-// int fs_write(int fd, void *buf, size_t count)
-// {
-// 	/* TODO: Phase 4 */
-// }
+int fs_write(int fd, void *buf, size_t count)
+{
+    /* TODO: Phase 4 */
+    (void)fd; // Dummy variable to avoid unused parameter warning
+    (void)buf; // Dummy variable to avoid unused parameter warning
+    (void)count; // Dummy variable to avoid unused parameter warning
+    return 0;
+}
 
-// int fs_read(int fd, void *buf, size_t count)
-// {
-// 	/* TODO: Phase 4 */
-// }
+int fs_read(int fd, void *buf, size_t count)
+{
+    /* TODO: Phase 4 */
+    (void)fd; // Dummy variable to avoid unused parameter warning
+    (void)buf; // Dummy variable to avoid unused parameter warning
+    (void)count; // Dummy variable to avoid unused parameter warning
+    return 0;
+}
