@@ -38,9 +38,15 @@ int fs_mount(const char *diskname)
 	return 0;
 }
 
-int fs_umount(void)
-{
-	/* TODO: Phase 1 */
+int fs_umount(void) {
+	
+    // Close the virtual disk file
+    if (block_disk_close() == -1) {
+        fprintf(stderr, "Failed to close virtual disk file\n");
+        return -1;
+    }
+
+    return 0;
 }
 
 int fs_info(void)
