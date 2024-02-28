@@ -30,8 +30,16 @@ struct RootDirectory
 	char padding[10];
 } __attribute__((packed));
 
+struct FatBlock {
+    uint16_t entries[2048]; // Array of 16-bit entries
+} __attribute__((packed));
+
 struct RootDirectory root_directory[FS_FILE_MAX_COUNT];
 int root_dir_count = 0;
+
+struct Superblock superblock;
+
+struct FatBlock fatblock;
 
 int fs_mount(const char *diskname)
 {
@@ -42,8 +50,6 @@ int fs_mount(const char *diskname)
 		return -1;
 	}
 
-	// Read the superblock from the disk
-	struct Superblock superblock;
 	if (block_read(0, &superblock) == -1)
 	{
 		fprintf(stderr, "Failed to read superblock from disk\n");
@@ -73,7 +79,18 @@ int fs_info(void)
 		fprintf(stderr, "No underlying virtual disk was opened\n");
 		return -1;
 	}
+
+	print_fat_block(&fatblock);
+
+	printf("FS INFO:\n");
+	printf("total_blk_count=%d\n", block_disk_count());
+	printf("fat_blk_count=%d\n", superblock.fat_blocks);
+	printf("rdir_blk=%d\n", superblock.root_index);
+	printf("data_blk=%d\n", superblock.data_start);
+	printf("data_blk_count=%d\n", superblock.data_blocks);
+
 	return 0;
+
 }
 
 int fs_create(const char *filename)
