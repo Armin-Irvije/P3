@@ -13,19 +13,21 @@
 
 struct Superblock
 {
-	char signature[8];	   // Signature (must be equal to "ECS150FS")
-	uint16_t total_blocks; // Total amount of blocks of virtual disk
-	uint16_t root_index;   // Root directory block index
+	char signature[8];	   // Signature equal to "ECS150FS"
+	uint16_t total_blocks; 
+	uint16_t root_index;   
 	uint16_t data_start;   // Data block start index
 	uint16_t data_blocks;  // Amount of data blocks
 	uint8_t fat_blocks;	   // Number of blocks for FAT
 	uint8_t padding[4079]; // Unused/Padding
-} __attribute__((packed)); // Ensure packed attribute for correct layout
+} __attribute__((packed)); // Ensure correct layout
 
 struct RootDirectory
 {
 	char filename[16];
-	uint32_t size;
+	//32 byte entry per file (128 entries total)
+	uint32_t entries[FS_FILE_MAX_COUNT];
+	uint32_t size; 
 	uint16_t first_block;
 	char padding[10];
 } __attribute__((packed));
@@ -34,12 +36,12 @@ struct FatBlock {
     uint16_t entries[2048]; // Array of 16-bit entries
 } __attribute__((packed));
 
+//global variables
+struct Superblock superblock;
 struct RootDirectory root_directory[FS_FILE_MAX_COUNT];
+struct FatBlock fatblock;
 int root_dir_count = 0;
 
-struct Superblock superblock;
-
-struct FatBlock fatblock;
 
 int fs_mount(const char *diskname)
 {
@@ -80,7 +82,15 @@ int fs_info(void)
 		return -1;
 	}
 
-	print_fat_block(&fatblock);
+	// count number of empty root directories 
+	int Num_empty_entries = 0;
+	for (int i = 0; i < FS_FILE_MAX_COUNT; i++) // less than because 0 - 127 is 128 entries
+	{
+		if (strcmp(root_directory[i].filename, "") == 0)
+		{
+			Num_empty_entries++;
+		}
+	}
 
 	printf("FS INFO:\n");
 	printf("total_blk_count=%d\n", block_disk_count());
@@ -88,6 +98,7 @@ int fs_info(void)
 	printf("rdir_blk=%d\n", superblock.root_index);
 	printf("data_blk=%d\n", superblock.data_start);
 	printf("data_blk_count=%d\n", superblock.data_blocks);
+	printf("rdir_free_ratio=%d/%d\n", Num_empty_entries, FS_FILE_MAX_COUNT);
 
 	return 0;
 
