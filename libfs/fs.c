@@ -46,7 +46,6 @@ struct FatBlock
 struct Superblock superblock;
 struct RootDirectory root_directory; //
 struct FatBlock fatblock;
-int root_dir_count = 0;
 
 int fs_mount(const char *diskname)
 {
@@ -129,31 +128,37 @@ int fs_info(void)
 
 int fs_create(const char *filename)
 {
-	// // Find an empty entry in the root directory
-	// int empty_entry_index = -1;
-	// for (int i = 0; i < FS_FILE_MAX_COUNT; i++)
-	// {
-	// 	if (strcmp(root_directory[i].filename, "") == 0)
-	// 	{
-	// 		empty_entry_index = i;
-	// 		break;
-	// 	}
-	// }
+	// Find an empty entry in the root directory
+	int empty_entry_index = -1;
+	for (int i = 0; i < FS_FILE_MAX_COUNT; i++)
+	{
+		if (strcmp(root_directory.entries[i].filename, "") == 0)
+		{
+			empty_entry_index = i;
+			break;
+		}
+	}
 
-	// // If no empty entry is found, return -1
-	// if (empty_entry_index == -1)
-	// {
-	// 	return -1;
-	// }
+	// If no empty entry is found, return -1
+	if (empty_entry_index == -1)
+	{
+		return -1;
+	}
 
-	// // Fill out the empty entry with the new filename
-	// strcpy(root_directory[empty_entry_index].filename, filename);
-	// root_directory[empty_entry_index].size = 0;
-	// root_directory[empty_entry_index].first_block = FAT_EOC;
+	// Fill out the empty entry with the new filename
+	strcpy(root_directory.entries[empty_entry_index].filename, filename);
+	root_directory.entries[empty_entry_index].size = 0;
+	root_directory.entries[empty_entry_index].first_block_data = FAT_EOC;
 
-	// // Increment the count of files in the root directory
-	// root_dir_count++;
-	(void)filename;
+	
+	printf("Filename: %s\n", root_directory.entries[empty_entry_index].filename);
+    printf("Size: %u\n", root_directory.entries[empty_entry_index].size);
+    printf("First Block: %u\n", root_directory.entries[empty_entry_index].first_block_data);
+    printf("\n");
+
+	printf("index =%d\n", empty_entry_index);
+	
+
 
 	return 0;
 }
@@ -167,7 +172,18 @@ int fs_delete(const char *filename)
 
 int fs_ls(void)
 {
-	/* TODO: Phase 2 */
+	 for (int i = 0; i < FS_FILE_MAX_COUNT; i++) {
+        // Check if the filename is empty, indicating an empty entry
+		printf("Filename: %s\n", root_directory.entries[0].filename);
+		break;
+        if (strcmp(root_directory.entries[i].filename, "") != 0) {
+			printf("we are here\n");
+            printf("Filename: %s\n", root_directory.entries[i].filename);
+            printf("Size: %u\n", root_directory.entries[i].size);
+            printf("First Block: %u\n", root_directory.entries[i].first_block_data);
+            printf("\n");
+        }
+    }
 	return 0;
 }
 
