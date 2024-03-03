@@ -11,6 +11,7 @@
 #define FS_FILE_MAX_COUNT 128
 #define FAT_EOC 0xFFFF
 
+
 struct Superblock
 {
 	char signature[8];	   // Signature equal to "ECS150FS"
@@ -22,14 +23,18 @@ struct Superblock
 	uint8_t padding[4079]; // Unused/Padding
 } __attribute__((packed)); // Ensure correct layout
 
+struct RDentries{
+	char filename[16];
+	uint32_t size; 
+	uint16_t first_block_data;
+}__attribute__((packed));
+
 struct RootDirectory
 {
-	char filename[16];
 	//32 byte entry per file (128 entries total)
-	uint32_t entries[FS_FILE_MAX_COUNT];
-	uint32_t size; 
-	uint16_t first_block;
+	struct RDentries entries[FS_FILE_MAX_COUNT];
 	char padding[10];
+
 } __attribute__((packed));
 
 struct FatBlock {
@@ -38,7 +43,7 @@ struct FatBlock {
 
 //global variables
 struct Superblock superblock;
-struct RootDirectory root_directory[FS_FILE_MAX_COUNT];
+struct RootDirectory root_directory; //
 struct FatBlock fatblock;
 int root_dir_count = 0;
 
@@ -86,13 +91,15 @@ int fs_info(void)
 	int Num_empty_entries = 0;
 	for (int i = 0; i < FS_FILE_MAX_COUNT; i++) // less than because 0 - 127 is 128 entries
 	{
-		if (strcmp(root_directory[i].filename, "") == 0)
+		if (strcmp(root_directory.entries[i].filename, "") == 0)
 		{
 			Num_empty_entries++;
 		}
 	}
 
+
 	printf("FS INFO:\n");
+	printf("");
 	printf("total_blk_count=%d\n", block_disk_count());
 	printf("fat_blk_count=%d\n", superblock.fat_blocks);
 	printf("rdir_blk=%d\n", superblock.root_index);
@@ -106,30 +113,31 @@ int fs_info(void)
 
 int fs_create(const char *filename)
 {
-	// Find an empty entry in the root directory
-	int empty_entry_index = -1;
-	for (int i = 0; i < FS_FILE_MAX_COUNT; i++)
-	{
-		if (strcmp(root_directory[i].filename, "") == 0)
-		{
-			empty_entry_index = i;
-			break;
-		}
-	}
+	// // Find an empty entry in the root directory
+	// int empty_entry_index = -1;
+	// for (int i = 0; i < FS_FILE_MAX_COUNT; i++)
+	// {
+	// 	if (strcmp(root_directory[i].filename, "") == 0)
+	// 	{
+	// 		empty_entry_index = i;
+	// 		break;
+	// 	}
+	// }
 
-	// If no empty entry is found, return -1
-	if (empty_entry_index == -1)
-	{
-		return -1;
-	}
+	// // If no empty entry is found, return -1
+	// if (empty_entry_index == -1)
+	// {
+	// 	return -1;
+	// }
 
-	// Fill out the empty entry with the new filename
-	strcpy(root_directory[empty_entry_index].filename, filename);
-	root_directory[empty_entry_index].size = 0;
-	root_directory[empty_entry_index].first_block = FAT_EOC;
+	// // Fill out the empty entry with the new filename
+	// strcpy(root_directory[empty_entry_index].filename, filename);
+	// root_directory[empty_entry_index].size = 0;
+	// root_directory[empty_entry_index].first_block = FAT_EOC;
 
-	// Increment the count of files in the root directory
-	root_dir_count++;
+	// // Increment the count of files in the root directory
+	// root_dir_count++;
+	 (void)filename; 
 
 	return 0;
 }
