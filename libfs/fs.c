@@ -11,42 +11,42 @@
 #define FS_FILE_MAX_COUNT 128
 #define FAT_EOC 0xFFFF
 
-
 struct Superblock
 {
-	char signature[8];	   // Signature equal to "ECS150FS"
-	uint16_t total_blocks; 
-	uint16_t root_index;   
+	char signature[8]; // Signature equal to "ECS150FS"
+	uint16_t total_blocks;
+	uint16_t root_index;
 	uint16_t data_start;   // Data block start index
 	uint16_t data_blocks;  // Amount of data blocks
 	uint8_t fat_blocks;	   // Number of blocks for FAT
 	uint8_t padding[4079]; // Unused/Padding
 } __attribute__((packed)); // Ensure correct layout
 
-struct RDentries{
+struct RDentries
+{
 	char filename[16];
-	uint32_t size; 
+	uint32_t size;
 	uint16_t first_block_data;
-}__attribute__((packed));
+} __attribute__((packed));
 
 struct RootDirectory
 {
-	//32 byte entry per file (128 entries total)
+	// 32 byte entry per file (128 entries total)
 	struct RDentries entries[FS_FILE_MAX_COUNT];
 	char padding[10];
 
 } __attribute__((packed));
 
-struct FatBlock {
-    uint16_t entries[2048]; // Array of 16-bit entries
+struct FatBlock
+{
+	uint16_t entries[2048]; // Array of 16-bit entries
 } __attribute__((packed));
 
-//global variables
+// global variables
 struct Superblock superblock;
 struct RootDirectory root_directory; //
 struct FatBlock fatblock;
 int root_dir_count = 0;
-
 
 int fs_mount(const char *diskname)
 {
@@ -87,7 +87,7 @@ int fs_info(void)
 		return -1;
 	}
 
-	// count number of empty root directories 
+	// count number of empty root directories
 	int Num_empty_entries = 0;
 	for (int i = 0; i < FS_FILE_MAX_COUNT; i++) // less than because 0 - 127 is 128 entries
 	{
@@ -97,6 +97,23 @@ int fs_info(void)
 		}
 	}
 
+	int fat_free_numerator;
+	int Num_empty_fat_entries = 0;
+	for (int i = 0; i < superblock.fat_blocks; i++) // less than because 0 - 127 is 128 entries
+	{
+		for (size_t i = 0; i < sizeof(fatblock.entries) / sizeof(fatblock.entries[0]); i++)
+		{
+			if (fatblock.entries == 0)
+			{
+				Num_empty_fat_entries++;
+			}
+		}
+	}
+
+	if (Num_empty_fat_entries == superblock.data_blocks)
+	{
+		fat_free_numerator = Num_empty_fat_entries - 1;
+	}
 
 	printf("FS INFO:\n");
 	printf("");
@@ -105,10 +122,10 @@ int fs_info(void)
 	printf("rdir_blk=%d\n", superblock.root_index);
 	printf("data_blk=%d\n", superblock.data_start);
 	printf("data_blk_count=%d\n", superblock.data_blocks);
+	printf("fat_free_ratio=%d/%d\n", fat_free_numerator, superblock.data_blocks);
 	printf("rdir_free_ratio=%d/%d\n", Num_empty_entries, FS_FILE_MAX_COUNT);
 
 	return 0;
-
 }
 
 int fs_create(const char *filename)
@@ -137,67 +154,67 @@ int fs_create(const char *filename)
 
 	// // Increment the count of files in the root directory
 	// root_dir_count++;
-	 (void)filename; 
+	(void)filename;
 
 	return 0;
 }
 
 int fs_delete(const char *filename)
 {
-    /* TODO: Phase 2 */
-    (void)filename; // Dummy variable to avoid unused parameter warning
-    return 0;
+	/* TODO: Phase 2 */
+	(void)filename; // Dummy variable to avoid unused parameter warning
+	return 0;
 }
 
 int fs_ls(void)
 {
-    /* TODO: Phase 2 */
-    return 0;
+	/* TODO: Phase 2 */
+	return 0;
 }
 
 int fs_open(const char *filename)
 {
-    /* TODO: Phase 3 */
-    (void)filename; // Dummy variable to avoid unused parameter warning
-    return 0;
+	/* TODO: Phase 3 */
+	(void)filename; // Dummy variable to avoid unused parameter warning
+	return 0;
 }
 
 int fs_close(int fd)
 {
-    /* TODO: Phase 3 */
-    (void)fd; // Dummy variable to avoid unused parameter warning
-    return 0;
+	/* TODO: Phase 3 */
+	(void)fd; // Dummy variable to avoid unused parameter warning
+	return 0;
 }
 
 int fs_stat(int fd)
 {
-    /* TODO: Phase 3 */
-    (void)fd; // Dummy variable to avoid unused parameter warning
-    return 0;
+	/* TODO: Phase 3 */
+	(void)fd; // Dummy variable to avoid unused parameter warning
+	return 0;
 }
 
 int fs_lseek(int fd, size_t offset)
 {
-    /* TODO: Phase 3 */
-    (void)fd; // Dummy variable to avoid unused parameter warning
-    (void)offset; // Dummy variable to avoid unused parameter warning
-    return 0;
+	/* TODO: Phase 3 */
+	(void)fd;	  // Dummy variable to avoid unused parameter warning
+	(void)offset; // Dummy variable to avoid unused parameter warning
+	return 0;
 }
 
 int fs_write(int fd, void *buf, size_t count)
 {
-    /* TODO: Phase 4 */
-    (void)fd; // Dummy variable to avoid unused parameter warning
-    (void)buf; // Dummy variable to avoid unused parameter warning
-    (void)count; // Dummy variable to avoid unused parameter warning
-    return 0;
+	/* TODO: Phase 4 */
+	(void)fd;	 // Dummy variable to avoid unused parameter warning
+	(void)buf;	 // Dummy variable to avoid unused parameter warning
+	(void)count; // Dummy variable to avoid unused parameter warning
+	return 0;
 }
 
 int fs_read(int fd, void *buf, size_t count)
 {
-    /* TODO: Phase 4 */
-    (void)fd; // Dummy variable to avoid unused parameter warning
-    (void)buf; // Dummy variable to avoid unused parameter warning
-    (void)count; // Dummy variable to avoid unused parameter warning
-    return 0;
+	/* TODO: Phase 4 */
+	(void)fd;	 // Dummy variable to avoid unused parameter warning
+	(void)buf;	 // Dummy variable to avoid unused parameter warning
+	(void)count; // Dummy variable to avoid unused parameter warning
+	return 0;
 }
