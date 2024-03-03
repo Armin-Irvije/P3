@@ -116,7 +116,6 @@ int fs_info(void)
 	}
 
 	printf("FS INFO:\n");
-	printf("");
 	printf("total_blk_count=%d\n", block_disk_count());
 	printf("fat_blk_count=%d\n", superblock.fat_blocks);
 	printf("rdir_blk=%d\n", superblock.root_index);
