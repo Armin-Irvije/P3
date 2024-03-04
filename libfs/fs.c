@@ -66,7 +66,6 @@ int fs_mount(const char *diskname)
 	// Allocate memory for superblock and root_directory
 	superblock = (struct Superblock *)malloc(sizeof(struct Superblock));
 	root_directory = (struct RootDirectory *)malloc(sizeof(struct RootDirectory));
-	fatblock = (struct FatBlock *)malloc(sizeof(struct FatBlock));
 
 	if (block_read(0, superblock) == -1)
 	{
@@ -80,10 +79,17 @@ int fs_mount(const char *diskname)
 		return -1;
 	}
 
-	if (block_read(4096, fatblock->entries) < 0)
+	// Allocate memory for the FAT blocks
+	fatblock = (struct FatBlock *)malloc(superblock->fat_blocks * sizeof(struct FatBlock));
+
+	// Read each FAT block
+	for (int i = 0; i < superblock->fat_blocks; i++)
 	{
-		printf("fs_mount: read root dir error\n");
-		return -1;
+		if (block_read(4096 + i, &(fatblock[i].entries)) < 0)
+		{
+			printf("fs_mount: read FAT block %d error\n", i);
+			return -1;
+		}
 	}
 
 	return 0;
