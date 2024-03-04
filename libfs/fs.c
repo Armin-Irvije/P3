@@ -23,22 +23,12 @@ struct Superblock
 	uint8_t padding[4079]; // Unused/Padding
 } __attribute__((packed)); // Ensure correct layout
 
-struct RDentries
+struct RootDirectory
 {
+	// 32 byte entry per file
 	char filename[16];
 	uint32_t size;
 	uint16_t first_block_data;
-
-	// copied code
-	uint16_t last_data_blk;
-	uint8_t open;
-	char unused[7];
-} __attribute__((packed));
-
-struct RootDirectory
-{
-	// 32 byte entry per file (128 entries total)
-	struct RDentries entries[FS_FILE_MAX_COUNT];
 	char padding[10];
 } __attribute__((packed));
 
@@ -50,7 +40,7 @@ struct FatBlock
 
 // global variables
 struct Superblock *superblock;
-struct RootDirectory *root_directory;
+struct RootDirectory root_directory[FS_FILE_MAX_COUNT]; //root directory array size 128
 struct FatBlock *fatblock;
 
 // NUll character
@@ -66,15 +56,13 @@ int fs_mount(const char *diskname)
 
 	// Allocate memory for superblock and root_directory
 	superblock = (struct Superblock *)malloc(sizeof(struct Superblock));
-	root_directory = (struct RootDirectory *)malloc(sizeof(struct RootDirectory));
-
 	if (block_read(0, superblock) == -1)
 	{
 		fprintf(stderr, "Failed to read superblock from disk\n");
 		return -1;
 	}
 
-	if (block_read(superblock->root_index, root_directory->entries) < 0)
+	if (block_read(superblock->root_index, root_directory) < 0)
 	{
 		printf("fs_mount: read root dir error\n");
 		return -1;
@@ -96,6 +84,7 @@ int fs_mount(const char *diskname)
 	return 0;
 }
 
+//whenever fs_umount() is called, all meta-information and file data must have been written out to disk.
 int fs_umount(void)
 {
 	// Close the virtual disk file
@@ -107,7 +96,6 @@ int fs_umount(void)
 
 	// Free allocated memory
 	free(superblock);
-	free(root_directory);
 
 	return 0;
 }
@@ -124,7 +112,7 @@ int fs_info(void)
 	int Num_empty_entries = 0;
 	for (int i = 0; i < FS_FILE_MAX_COUNT; i++)
 	{
-		if (strcmp(root_directory->entries[i].filename, "") == 0)
+		if (strcmp(root_directory[i].filename, "") == 0)
 		{
 			Num_empty_entries++;
 		}
@@ -159,7 +147,7 @@ int fs_create(const char *filename)
 	int empty_entry_index = -1;
 	for (int i = 0; i < FS_FILE_MAX_COUNT; i++)
 	{
-		if (strcmp(root_directory->entries[i].filename, "") == 0)
+		if (strcmp(root_directory[i].filename, "") == 0)
 		{
 			empty_entry_index = i;
 			break;
@@ -173,9 +161,9 @@ int fs_create(const char *filename)
 	}
 
 	// Fill out the empty entry with the new filename
-	strcpy(root_directory->entries[empty_entry_index].filename, filename);
-	root_directory->entries[empty_entry_index].size = 0;
-	root_directory->entries[empty_entry_index].first_block_data = FAT_EOC;
+	strcpy(root_directory[empty_entry_index].filename, filename);
+	root_directory[empty_entry_index].size = 0;
+	root_directory[empty_entry_index].first_block_data = FAT_EOC;
 
 	// Free data blocks occupied by the file in the FAT
 	// (This step would require additional implementation based on your file system structure)
@@ -212,7 +200,7 @@ int fs_delete(const char *filename)
 	int file_index = -1;
 	for (int i = 0; i < FS_FILE_MAX_COUNT; i++)
 	{
-		if (strcmp(root_directory->entries[i].filename, filename) == 0)
+		if (strcmp(root_directory[i].filename, filename) == 0)
 		{
 			file_index = i;
 			break;
@@ -239,9 +227,9 @@ int fs_delete(const char *filename)
 	// printf("\n");
 
 	// Clear the entry for the file
-	strcpy(root_directory->entries[file_index].filename, "");
-	root_directory->entries[file_index].size = 0;
-	root_directory->entries[file_index].first_block_data = 0;
+	strcpy(root_directory[file_index].filename, "");
+	root_directory[file_index].size = 0;
+	root_directory[file_index].first_block_data = 0;
 
 	return 0;
 }
@@ -253,12 +241,12 @@ int fs_ls(void)
 	for (int i = 0; i < FS_FILE_MAX_COUNT; i++)
 	{
 		// Check if the filename is empty, indicating an empty entry
-		if (strcmp(root_directory->entries[i].filename, "") != 0)
+		if (strcmp(root_directory[i].filename, "") != 0)
 		{
 
-			printf("file: %s, ", root_directory->entries[i].filename);
-			printf("Size: %u, ", root_directory->entries[i].size);
-			printf("data_blk: %u\n", root_directory->entries[i].first_block_data);
+			printf("file: %s, ", root_directory[i].filename);
+			printf("Size: %u, ", root_directory[i].size);
+			printf("data_blk: %u\n", root_directory[i].first_block_data);
 		}
 	}
 	return 0;
