@@ -44,8 +44,9 @@ struct RootDirectory
 
 struct FatBlock
 {
-	uint16_t entries[2048]; // Array of 16-bit entries
+    uint16_t entry; // Array of 16-bit entries
 } __attribute__((packed));
+
 
 // global variables
 struct Superblock *superblock;
@@ -80,17 +81,17 @@ int fs_mount(const char *diskname)
 	}
 
 	// Allocate memory for the FAT blocks
-	fatblock = (struct FatBlock *)malloc(superblock->fat_blocks * sizeof(struct FatBlock));
+    fatblock = (struct FatBlock *)malloc((superblock->fat_blocks) * BLOCK_SIZE); // multipying # of fat blocks for correct allocation
+    // Read each FAT block and start count at 1
+    for (int i = 1; i <= superblock->fat_blocks; i++)
+    {
+        if (block_read(i, (char *)fatblock + BLOCK_SIZE * (i - 1)))
+        {
+            printf("fs_mount: read FAT block %d error\n", i);
+            return -1;
+        }
+    }
 
-	// Read each FAT block
-	for (int i = 0; i < superblock->fat_blocks; i++)
-	{
-		if (block_read(4096 + i, &(fatblock[i].entries)) < 0)
-		{
-			printf("fs_mount: read FAT block %d error\n", i);
-			return -1;
-		}
-	}
 
 	return 0;
 }
@@ -129,23 +130,16 @@ int fs_info(void)
 		}
 	}
 
-	int fat_free_numerator;
-	int Num_empty_fat_entries = 0;
-	for (int i = 0; i < superblock->fat_blocks; i++)
-	{
-		for (size_t j = 0; j < sizeof(fatblock->entries) / sizeof(fatblock->entries[0]); j++)
-		{
-			if (fatblock->entries[j] == 0)
-			{
-				Num_empty_fat_entries++;
-			}
-		}
-	}
+	// find number of free fat blocks
+    int fat_free_numerator = 0;
+    for (int i = 1; i < superblock->data_blocks; i++)
+    {
+        if (fatblock[i].entry == 0)
+        {
+            fat_free_numerator++;
+        }
+    }
 
-	if (Num_empty_fat_entries == superblock->data_blocks)
-	{
-		fat_free_numerator = Num_empty_fat_entries - 1;
-	}
 
 	printf("FS INFO:\n");
 	printf("total_blk_count=%d\n", block_disk_count());
@@ -189,22 +183,22 @@ int fs_create(const char *filename)
 	return 0;
 }
 
-void get_file_blocks(struct FatBlock fat_block, uint16_t start_index, uint16_t *blocks_array)
-{
-	uint16_t index = start_index;
-	size_t num_blocks = 0;
+// void get_file_blocks(struct FatBlock fat_block, uint16_t start_index, uint16_t *blocks_array)
+// {
+// 	uint16_t index = start_index;
+// 	size_t num_blocks = 0;
 
-	// Iterate through the FAT block until FAT_EOC is reached or the array is full
-	while (index != FAT_EOC && num_blocks < FAT_SIZE)
-	{
-		// Store the block index in the array
-		blocks_array[num_blocks] = index;
-		num_blocks++; // Increment the number of blocks associated with the file
+// 	// Iterate through the FAT block until FAT_EOC is reached or the array is full
+// 	while (index != FAT_EOC && num_blocks < FAT_SIZE)
+// 	{
+// 		// Store the block index in the array
+// 		blocks_array[num_blocks] = index;
+// 		num_blocks++; // Increment the number of blocks associated with the file
 
-		// Move to the next block index
-		index = fat_block.entries[index];
-	}
-}
+// 		// Move to the next block index
+// 		index = fat_block.entries[index];
+// 	}
+// }
 
 int fs_delete(const char *filename)
 {
