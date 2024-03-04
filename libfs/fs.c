@@ -50,7 +50,7 @@ struct FatBlock
 // global variables
 struct Superblock *superblock;
 struct RootDirectory *root_directory;
-struct FatBlock fatblock;
+struct FatBlock *fatblock;
 
 // NUll character
 
@@ -66,6 +66,7 @@ int fs_mount(const char *diskname)
 	// Allocate memory for superblock and root_directory
 	superblock = (struct Superblock *)malloc(sizeof(struct Superblock));
 	root_directory = (struct RootDirectory *)malloc(sizeof(struct RootDirectory));
+	fatblock = (struct FatBlock *)malloc(sizeof(struct FatBlock));
 
 	if (block_read(0, superblock) == -1)
 	{
@@ -79,7 +80,7 @@ int fs_mount(const char *diskname)
 		return -1;
 	}
 
-	if (block_read(4096, fatblock.entries) < 0)
+	if (block_read(4096, fatblock->entries) < 0)
 	{
 		printf("fs_mount: read root dir error\n");
 		return -1;
@@ -126,9 +127,9 @@ int fs_info(void)
 	int Num_empty_fat_entries = 0;
 	for (int i = 0; i < superblock->fat_blocks; i++)
 	{
-		for (size_t j = 0; j < sizeof(fatblock.entries) / sizeof(fatblock.entries[0]); j++)
+		for (size_t j = 0; j < sizeof(fatblock->entries) / sizeof(fatblock->entries[0]); j++)
 		{
-			if (fatblock.entries[j] == 0)
+			if (fatblock->entries[j] == 0)
 			{
 				Num_empty_fat_entries++;
 			}
@@ -224,18 +225,18 @@ int fs_delete(const char *filename)
 		return -1;
 	}
 
-	uint16_t blocks_array[FAT_SIZE];
+	// uint16_t blocks_array[FAT_SIZE];
 
-	// Call get_file_blocks to populate the blocks_array
-	get_file_blocks(fatblock, root_directory->entries[file_index].first_block_data, blocks_array);
+	// // Call get_file_blocks to populate the blocks_array
+	// get_file_blocks(fatblock, root_directory->entries[file_index].first_block_data, blocks_array);
 
-	// Print the block indexes associated with the file
-	printf("Block indexes associated with the file:\n");
-	for (size_t i = 0; blocks_array[i] != FAT_EOC && i < FAT_SIZE; i++)
-	{
-		printf("%u ", blocks_array[i]);
-	}
-	printf("\n");
+	// // Print the block indexes associated with the file
+	// printf("Block indexes associated with the file:\n");
+	// for (size_t i = 0; blocks_array[i] != FAT_EOC && i < FAT_SIZE; i++)
+	// {
+	// 	printf("%u ", blocks_array[i]);
+	// }
+	// printf("\n");
 
 	// Clear the entry for the file
 	strcpy(root_directory->entries[file_index].filename, "");
