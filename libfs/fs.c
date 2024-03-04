@@ -10,6 +10,7 @@
 #define FS_FILENAME_LEN 16
 #define FS_FILE_MAX_COUNT 128
 #define FAT_EOC 0xFFFF
+#define FAT_SIZE 2048
 
 struct Superblock
 {
@@ -73,6 +74,12 @@ int fs_mount(const char *diskname)
 	}
 
 	if (block_read(superblock->root_index, root_directory->entries) < 0)
+	{
+		printf("fs_mount: read root dir error\n");
+		return -1;
+	}
+
+	if (block_read(4096, fatblock.entries) < 0)
 	{
 		printf("fs_mount: read root dir error\n");
 		return -1;
@@ -169,13 +176,72 @@ int fs_create(const char *filename)
 	root_directory->entries[empty_entry_index].size = 0;
 	root_directory->entries[empty_entry_index].first_block_data = FAT_EOC;
 
+	// Free data blocks occupied by the file in the FAT
+	// (This step would require additional implementation based on your file system structure)
+
 	return 0;
+}
+
+void get_file_blocks(struct FatBlock fat_block, uint16_t start_index, uint16_t *blocks_array)
+{
+	uint16_t index = start_index;
+	size_t num_blocks = 0;
+
+	// Iterate through the FAT block until FAT_EOC is reached or the array is full
+	while (index != FAT_EOC && num_blocks < FAT_SIZE)
+	{
+		// Store the block index in the array
+		blocks_array[num_blocks] = index;
+		num_blocks++; // Increment the number of blocks associated with the file
+
+		// Move to the next block index
+		index = fat_block.entries[index];
+	}
 }
 
 int fs_delete(const char *filename)
 {
-	/* TODO: Phase 2 */
-	(void)filename; // Dummy variable to avoid unused parameter warning
+	// Check if no file system is currently mounted
+	if (root_directory == NULL || superblock == NULL)
+	{
+		return -1;
+	}
+
+	// Search for the file in the root directory
+	int file_index = -1;
+	for (int i = 0; i < FS_FILE_MAX_COUNT; i++)
+	{
+		if (strcmp(root_directory->entries[i].filename, filename) == 0)
+		{
+			file_index = i;
+			break;
+		}
+	}
+
+	// Return -1 if the filename is invalid or not found
+	if (file_index == -1)
+	{
+		return -1;
+	}
+
+	uint16_t blocks_array[FAT_SIZE];
+
+	// Call get_file_blocks to populate the blocks_array
+	get_file_blocks(fatblock, root_directory->entries[file_index].first_block_data, blocks_array);
+
+	// Print the block indexes associated with the file
+	printf("Block indexes associated with the file:\n");
+	for (size_t i = 0; blocks_array[i] != FAT_EOC && i < FAT_SIZE; i++)
+	{
+		printf("%u ", blocks_array[i]);
+	}
+	printf("\n");
+
+	// Clear the entry for the file
+	strcpy(root_directory->entries[file_index].filename, "");
+	root_directory->entries[file_index].size = 0;
+	root_directory->entries[file_index].first_block_data = 0;
+
 	return 0;
 }
 
@@ -188,7 +254,7 @@ int fs_ls(void)
 		// Check if the filename is empty, indicating an empty entry
 		if (strcmp(root_directory->entries[i].filename, "") != 0)
 		{
-			
+
 			printf("file: %s, ", root_directory->entries[i].filename);
 			printf("Size: %u, ", root_directory->entries[i].size);
 			printf("data_blk: %u\n", root_directory->entries[i].first_block_data);
