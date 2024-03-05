@@ -37,10 +37,18 @@ struct FatBlock
 	uint16_t entry[FAT_SIZE]; // Array of 16-bit entries
 } __attribute__((packed));
 
+struct FileDescriptor
+{
+	int fdValue;
+	char filename[FS_FILENAME_LEN];
+	int offset;
+};
+
 // global variables
 struct Superblock *superblock;
 struct RootDirectory root_directory[FS_FILE_MAX_COUNT]; // root directory array size 128
 struct FatBlock *fatblock;
+static struct FileDescriptor fileD[FS_OPEN_MAX_COUNT];
 
 // NUll character
 
@@ -226,7 +234,6 @@ void fill_fat_entries(struct FatBlock *fatblock, uint16_t start_index, uint16_t 
 {
 	uint16_t current_index = start_index;
 
-
 	// Iterate through the FAT entries from start_index to end_index
 	while (current_index != end_index)
 	{
@@ -355,7 +362,6 @@ int fs_create(const char *filename)
 	return 0;
 }
 
-
 void clear_fat_entries(struct FatBlock *fatblock, uint16_t entry_index)
 {
 	uint16_t index = entry_index;
@@ -433,17 +439,51 @@ int fs_ls(void)
 	}
 	return 0;
 }
-
+static int numOpen = 0;
+static 
+//global variables are not UNMOUNTING!!!
 int fs_open(const char *filename)
 {
 	/* TODO: Phase 3 */
-	(void)filename; // Dummy variable to avoid unused parameter warning
-	return 0;
+	// iterate through the root directory
+	for (int i = 0; i < FS_FILE_MAX_COUNT; i++)
+	{
+		// check if the filename equals the arguments passed
+		if (strcmp(root_directory[i].filename, filename) != 0)
+		{
+			// iterate throught the fd array
+			for (int j = 0; j < FS_OPEN_MAX_COUNT; j++)
+			{
+
+				if (strcmp(fileD[j].filename, "") == 0)
+				{ // check an empty spot
+					numOpen++;
+					strcpy(fileD[j].filename, filename);
+					fileD[j].fdValue = numOpen;
+					fileD[j].offset = 0;
+					
+					return j;
+				}
+			}
+		}
+	}
+
+	//(void)filename; // Dummy variable to avoid unused parameter warning
+	return -1;
 }
 
 int fs_close(int fd)
 {
 	/* TODO: Phase 3 */
+	for(int k = 0; k < FS_OPEN_MAX_COUNT; k++){
+		
+		if(strcmp(fileD[k].filename, "") != 0){
+
+			printf("index value: %d\n", fd);
+		}
+	}
+		
+
 	(void)fd; // Dummy variable to avoid unused parameter warning
 	return 0;
 }
