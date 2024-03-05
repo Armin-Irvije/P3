@@ -158,14 +158,24 @@ int fs_info(void)
 	// 	// Iterate over each entry within the block
 	// 	for (int entry_index = 0; entry_index < FAT_SIZE; entry_index++)
 	// 	{
-	// 		if(current_block.entry[entry_index] == FAT_EOC || current_block.entry[entry_index] != 0) {
-	// 		printf("Entry %d: %hu\n", entry_index, current_block.entry[entry_index]);
+	// 		if (current_block.entry[entry_index] == FAT_EOC || current_block.entry[entry_index] != 0)
+	// 		{
+	// 			printf("Entry %d: %hu\n", entry_index, current_block.entry[entry_index]);
 	// 		}
 	// 	}
 	// }
 	// /// PRINT FAT BLOCKS
 
-	printf("FS INFO:\n");
+	// for (int i = 0; i < FS_FILE_MAX_COUNT; i++)
+	// {
+	// 	// Check if the filename is not empty
+	// 	if (root_directory[i].filename[0] != '\0')
+	// 	{
+	// 		printf("Entry %d: first_block_data = %hu\n", i, root_directory[i].first_block_data);
+	// 	}
+	// }
+
+	printf("FS Info:\n");
 	printf("total_blk_count=%d\n", block_disk_count());
 	printf("fat_blk_count=%d\n", superblock->fat_blocks);
 	printf("rdir_blk=%d\n", superblock->root_index);
