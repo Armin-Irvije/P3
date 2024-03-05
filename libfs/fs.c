@@ -34,13 +34,12 @@ struct RootDirectory
 
 struct FatBlock
 {
-    uint16_t entry; // Array of 16-bit entries
+	uint16_t entry[FAT_SIZE]; // Array of 16-bit entries
 } __attribute__((packed));
-
 
 // global variables
 struct Superblock *superblock;
-struct RootDirectory root_directory[FS_FILE_MAX_COUNT]; //root directory array size 128
+struct RootDirectory root_directory[FS_FILE_MAX_COUNT]; // root directory array size 128
 struct FatBlock *fatblock;
 
 // NUll character
@@ -69,24 +68,39 @@ int fs_mount(const char *diskname)
 	}
 
 	// Allocate memory for the FAT blocks
-    fatblock = (struct FatBlock *)malloc((superblock->fat_blocks) * BLOCK_SIZE); // multipying # of fat blocks for correct allocation
-    // Read each FAT block and start count at 1
-    for (int i = 1; i <= superblock->fat_blocks; i++)
-    {
-        if (block_read(i, (char *)fatblock + BLOCK_SIZE * (i - 1)))
-        {
-            printf("fs_mount: read FAT block %d error\n", i);
-            return -1;
-        }
-    }
-
+	fatblock = (struct FatBlock *)malloc((superblock->fat_blocks) * BLOCK_SIZE); // multipying # of fat blocks for correct allocation
+	// Read each FAT block and start count at 1
+	for (int i = 1; i <= superblock->fat_blocks; i++)
+	{
+		if (block_read(i, (char *)fatblock + BLOCK_SIZE * (i - 1)))
+		{
+			printf("fs_mount: read FAT block %d error\n", i);
+			return -1;
+		}
+	}
 
 	return 0;
 }
 
-//whenever fs_umount() is called, all meta-information and file data must have been written out to disk.
+// whenever fs_umount() is called, all meta-information and file data must have been written out to disk.
 int fs_umount(void)
 {
+
+	if (block_write(superblock->root_index, root_directory) < 0)
+	{
+		printf("fs_mount: read root dir error\n");
+		return -1;
+	}
+
+	for (int i = 1; i <= superblock->fat_blocks; i++)
+	{
+		if (block_write(i, (char *)fatblock + BLOCK_SIZE * (i - 1)))
+		{
+			printf("fs_mount: read FAT block %d error\n", i);
+			return -1;
+		}
+	}
+
 	// Close the virtual disk file
 	if (block_disk_close() == -1)
 	{
@@ -118,16 +132,38 @@ int fs_info(void)
 		}
 	}
 
-	// find number of free fat blocks
-    int fat_free_numerator = 0;
-    for (int i = 1; i < superblock->data_blocks; i++)
-    {
-        if (fatblock[i].entry == 0)
-        {
-            fat_free_numerator++;
-        }
-    }
+	int fat_free_numerator = 0;
+	for (int i = 0; i < superblock->fat_blocks; i++)
+	{
+		for (int j = 0; j < FAT_SIZE; j++)
+		{
+			if (fatblock[i].entry[j] == 0)
+			{
+				fat_free_numerator++;
+			}
+		}
+	}
 
+	// root_directory->entries[empty_entry_index].first_block_data = FAT_EOC;
+	// fatblock->entry[2049] = 69;
+
+	// PRINT FAT BLOCKS
+	// for (int block_index = 0; block_index < superblock->fat_blocks; block_index++)
+	// {
+	// 	printf("Block %d:\n", block_index);
+
+	// 	// Get the current FAT block
+	// 	struct FatBlock current_block = fatblock[block_index];
+
+	// 	// Iterate over each entry within the block
+	// 	for (int entry_index = 0; entry_index < FAT_SIZE; entry_index++)
+	// 	{
+	// 		if(current_block.entry[entry_index] == FAT_EOC || current_block.entry[entry_index] != 0) {
+	// 		printf("Entry %d: %hu\n", entry_index, current_block.entry[entry_index]);
+	// 		}
+	// 	}
+	// }
+	// /// PRINT FAT BLOCKS
 
 	printf("FS INFO:\n");
 	printf("total_blk_count=%d\n", block_disk_count());
@@ -171,22 +207,30 @@ int fs_create(const char *filename)
 	return 0;
 }
 
-// void get_file_blocks(struct FatBlock fat_block, uint16_t start_index, uint16_t *blocks_array)
-// {
-// 	uint16_t index = start_index;
-// 	size_t num_blocks = 0;
+void clear_fat_entries(struct FatBlock *fatblock, uint16_t entry_index)
+{
+	uint16_t index = entry_index;
 
-// 	// Iterate through the FAT block until FAT_EOC is reached or the array is full
-// 	while (index != FAT_EOC && num_blocks < FAT_SIZE)
-// 	{
-// 		// Store the block index in the array
-// 		blocks_array[num_blocks] = index;
-// 		num_blocks++; // Increment the number of blocks associated with the file
+	// Iterate through the FAT entries until FAT_EOC is encountered
+	while (fatblock->entry[index] != FAT_EOC)
+	{
+		// Store the current FAT entry
+		uint16_t current_entry = fatblock->entry[index];
 
-// 		// Move to the next block index
-// 		index = fat_block.entries[index];
-// 	}
-// }
+		// Clear the current FAT entry by setting it to zero
+		fatblock->entry[index] = 0;
+
+		// Move to the next FAT entry
+		index = current_entry;
+	}
+
+	// Check if the current entry is FAT_EOC
+	if (fatblock->entry[index] == FAT_EOC)
+	{
+		// If it is, set the FAT_EOC entry to zero and break out of the loop
+		fatblock->entry[index] = 0;
+	}
+}
 
 int fs_delete(const char *filename)
 {
@@ -213,18 +257,7 @@ int fs_delete(const char *filename)
 		return -1;
 	}
 
-	// uint16_t blocks_array[FAT_SIZE];
-
-	// // Call get_file_blocks to populate the blocks_array
-	// get_file_blocks(fatblock, root_directory->entries[file_index].first_block_data, blocks_array);
-
-	// // Print the block indexes associated with the file
-	// printf("Block indexes associated with the file:\n");
-	// for (size_t i = 0; blocks_array[i] != FAT_EOC && i < FAT_SIZE; i++)
-	// {
-	// 	printf("%u ", blocks_array[i]);
-	// }
-	// printf("\n");
+	clear_fat_entries(fatblock, root_directory[file_index].first_block_data);
 
 	// Clear the entry for the file
 	strcpy(root_directory[file_index].filename, "");
