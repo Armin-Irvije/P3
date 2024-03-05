@@ -146,24 +146,26 @@ int fs_info(void)
 
 	// root_directory->entries[empty_entry_index].first_block_data = FAT_EOC;
 	// fatblock->entry[2049] = 69;
+	// fatblock->entry[2050] = 666;
+	// fatblock[1].entry[3] = 667;
 
 	// PRINT FAT BLOCKS
-	// for (int block_index = 0; block_index < superblock->fat_blocks; block_index++)
-	// {
-	// 	printf("Block %d:\n", block_index);
+	for (int block_index = 0; block_index < superblock->fat_blocks; block_index++)
+	{
+		printf("Block %d:\n", block_index);
 
-	// 	// Get the current FAT block
-	// 	struct FatBlock current_block = fatblock[block_index];
+		// Get the current FAT block
+		struct FatBlock current_block = fatblock[block_index];
 
-	// 	// Iterate over each entry within the block
-	// 	for (int entry_index = 0; entry_index < FAT_SIZE; entry_index++)
-	// 	{
-	// 		if (current_block.entry[entry_index] == FAT_EOC || current_block.entry[entry_index] != 0)
-	// 		{
-	// 			printf("Entry %d: %hu\n", entry_index, current_block.entry[entry_index]);
-	// 		}
-	// 	}
-	// }
+		// Iterate over each entry within the block
+		for (int entry_index = 0; entry_index < FAT_SIZE; entry_index++)
+		{
+			if (current_block.entry[entry_index] == FAT_EOC || current_block.entry[entry_index] != 0)
+			{
+				printf("Entry %d: %hu\n", entry_index, current_block.entry[entry_index]);
+			}
+		}
+	}
 	// /// PRINT FAT BLOCKS
 
 	// for (int i = 0; i < FS_FILE_MAX_COUNT; i++)
@@ -185,6 +187,60 @@ int fs_info(void)
 	printf("rdir_free_ratio=%d/%d\n", Num_empty_entries, FS_FILE_MAX_COUNT);
 
 	return 0;
+}
+
+int get_file_size(const char *filename)
+{
+	// Open the file in binary read mode
+	FILE *file = fopen(filename, "rb");
+	if (file == NULL)
+	{
+		perror("Error opening file");
+		return -1;
+	}
+
+	// Move the file pointer to the end of the file
+	if (fseek(file, 0, SEEK_END) != 0)
+	{
+		perror("Error seeking file");
+		fclose(file);
+		return -1;
+	}
+
+	// Get the size of the file
+	long file_size = ftell(file);
+	if (file_size == -1L)
+	{
+		perror("Error getting file size");
+		fclose(file);
+		return -1;
+	}
+
+	// Close the file
+	fclose(file);
+
+	return file_size;
+}
+
+void fill_fat_entries(struct FatBlock *fatblock, uint16_t start_index, uint16_t end_index)
+{
+	uint16_t current_index = start_index;
+
+	// Iterate through the FAT entries from start_index to end_index
+	while (current_index != end_index)
+	{
+		// Calculate the next index
+		uint16_t next_index = current_index + 1;
+
+		// Set the current FAT entry to point to the next index
+		fatblock->entry[current_index] = next_index;
+
+		// Move to the next FAT entry
+		current_index = next_index;
+	}
+
+	// Set the last FAT entry to FAT_EOC
+	fatblock->entry[end_index] = FAT_EOC;
 }
 
 int fs_create(const char *filename)
@@ -209,10 +265,30 @@ int fs_create(const char *filename)
 	// Fill out the empty entry with the new filename
 	strcpy(root_directory[empty_entry_index].filename, filename);
 	root_directory[empty_entry_index].size = 0;
-	root_directory[empty_entry_index].first_block_data = FAT_EOC;
 
-	// Free data blocks occupied by the file in the FAT
-	// (This step would require additional implementation based on your file system structure)
+	int x;
+	for (int j = 0; j < FAT_SIZE; j++)
+	{
+		if (fatblock->entry[j] == 0)
+		{
+			x = j;
+			break;
+		}
+	}
+	fatblock->entry[x] = FAT_EOC;
+
+	int z = get_file_size(filename);
+
+	int num_fat_entries = z / BLOCK_SIZE;
+	if ((z % BLOCK_SIZE) != 0)
+	{
+		num_fat_entries++;
+	}
+
+	fill_fat_entries(fatblock, x, num_fat_entries);
+
+	root_directory[empty_entry_index].size = z;
+	root_directory[empty_entry_index].first_block_data = x;
 
 	return 0;
 }
