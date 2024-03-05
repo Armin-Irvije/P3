@@ -226,6 +226,7 @@ void fill_fat_entries(struct FatBlock *fatblock, uint16_t start_index, uint16_t 
 {
 	uint16_t current_index = start_index;
 
+
 	// Iterate through the FAT entries from start_index to end_index
 	while (current_index != end_index)
 	{
@@ -242,6 +243,56 @@ void fill_fat_entries(struct FatBlock *fatblock, uint16_t start_index, uint16_t 
 	// Set the last FAT entry to FAT_EOC
 	fatblock->entry[end_index] = FAT_EOC;
 }
+
+// int fs_create(const char *filename)
+// {
+// 	// Find an empty entry in the root directory
+// 	int empty_entry_index = -1;
+// 	for (int i = 0; i < FS_FILE_MAX_COUNT; i++)
+// 	{
+// 		if (strcmp(root_directory[i].filename, "") == 0)
+// 		{
+// 			empty_entry_index = i;
+// 			break;
+// 		}
+// 	}
+
+// 	// If no empty entry is found, return -1
+// 	if (empty_entry_index == -1)
+// 	{
+// 		return -1;
+// 	}
+
+// 	// Fill out the empty entry with the new filename
+// 	strcpy(root_directory[empty_entry_index].filename, filename);
+// 	root_directory[empty_entry_index].size = 0;
+
+// 	int x;
+// 	for (int j = 0; j < FAT_SIZE * superblock->fat_blocks; j++)
+// 	{
+// 		if (fatblock->entry[j] == 0)
+// 		{
+// 			x = j;
+// 			break;
+// 		}
+// 	}
+// 	//fatblock->entry[x] = FAT_EOC;
+
+// 	int z = get_file_size(filename);
+
+// 	int num_fat_entries = z / BLOCK_SIZE;
+// 	if ((z % BLOCK_SIZE) != 0)
+// 	{
+// 		num_fat_entries++;
+// 	}
+//
+// 	fill_fat_entries(fatblock, x, num_fat_entries);
+
+// 	root_directory[empty_entry_index].size = z;
+// 	root_directory[empty_entry_index].first_block_data = x;
+
+// 	return 0;
+// }
 
 int fs_create(const char *filename)
 {
@@ -264,34 +315,46 @@ int fs_create(const char *filename)
 
 	// Fill out the empty entry with the new filename
 	strcpy(root_directory[empty_entry_index].filename, filename);
-	root_directory[empty_entry_index].size = 0;
 
-	int x;
-	for (int j = 0; j < FAT_SIZE; j++)
+	// Get the size of the file
+	int file_size = get_file_size(filename);
+	if (file_size == -1)
+	{
+		return -1;
+	}
+
+	// Calculate the number of blocks required to store the file
+	int num_blocks = file_size / BLOCK_SIZE;
+	if (file_size % BLOCK_SIZE != 0)
+	{
+		num_blocks++;
+	}
+
+	// Find an empty slot in the FAT to start writing the file
+	int start_block = -1;
+	for (int j = 0; j < FAT_SIZE * superblock->fat_blocks; j++)
 	{
 		if (fatblock->entry[j] == 0)
 		{
-			x = j;
+			start_block = j;
 			break;
 		}
 	}
-	fatblock->entry[x] = FAT_EOC;
-
-	int z = get_file_size(filename);
-
-	int num_fat_entries = z / BLOCK_SIZE;
-	if ((z % BLOCK_SIZE) != 0)
+	if (start_block == -1)
 	{
-		num_fat_entries++;
+		return -1; // No empty slot found in the FAT
 	}
 
-	fill_fat_entries(fatblock, x, num_fat_entries);
+	// Write the file size and start block information to the root directory entry
+	root_directory[empty_entry_index].size = file_size;
+	root_directory[empty_entry_index].first_block_data = start_block;
 
-	root_directory[empty_entry_index].size = z;
-	root_directory[empty_entry_index].first_block_data = x;
+	// Fill FAT entries for the file
+	fill_fat_entries(fatblock, start_block, start_block + num_blocks - 1);
 
 	return 0;
 }
+
 
 void clear_fat_entries(struct FatBlock *fatblock, uint16_t entry_index)
 {
