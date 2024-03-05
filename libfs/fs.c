@@ -39,7 +39,7 @@ struct FatBlock
 
 struct FileDescriptor
 {
-	int fdValue;
+	
 	char filename[FS_FILENAME_LEN];
 	int offset;
 };
@@ -440,12 +440,16 @@ int fs_ls(void)
 	return 0;
 }
 static int numOpen = 0;
-static 
-//global variables are not UNMOUNTING!!!
+// global variables are not UNMOUNTING!!!
 int fs_open(const char *filename)
 {
 	/* TODO: Phase 3 */
 	// iterate through the root directory
+	if (numOpen > FS_OPEN_MAX_COUNT)
+	{
+		return -1; // too many files open
+	}
+
 	for (int i = 0; i < FS_FILE_MAX_COUNT; i++)
 	{
 		// check if the filename equals the arguments passed
@@ -458,10 +462,10 @@ int fs_open(const char *filename)
 				if (strcmp(fileD[j].filename, "") == 0)
 				{ // check an empty spot
 					numOpen++;
+					//value++;
 					strcpy(fileD[j].filename, filename);
-					fileD[j].fdValue = numOpen;
 					fileD[j].offset = 0;
-					
+
 					return j;
 				}
 			}
@@ -475,16 +479,27 @@ int fs_open(const char *filename)
 int fs_close(int fd)
 {
 	/* TODO: Phase 3 */
-	for(int k = 0; k < FS_OPEN_MAX_COUNT; k++){
-		
-		if(strcmp(fileD[k].filename, "") != 0){
+	for (int k = 0; k < FS_OPEN_MAX_COUNT; k++)
+	{
+
+		if (strcmp(fileD[k].filename, "") != 0)
+		{
 
 			printf("index value: %d\n", fd);
 		}
 	}
-		
+	// Check if the file descriptor is within valid range
+	if (fd < 0 || fd >= FS_OPEN_MAX_COUNT)
+		return -1;
 
-	(void)fd; // Dummy variable to avoid unused parameter warning
+	// Reset values associated with the file descriptor
+	strcpy(fileD[fd].filename, "");
+	fileD[fd].offset = 0;
+	// Decrement the count of open files
+	numOpen--;
+
+	printf("index value: %d\n", fd);
+
 	return 0;
 }
 
