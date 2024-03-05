@@ -503,19 +503,42 @@ int fs_close(int fd)
 	return 0;
 }
 
-int fs_stat(int fd)
-{
-	/* TODO: Phase 3 */
-	(void)fd; // Dummy variable to avoid unused parameter warning
-	return 0;
+int fs_stat(int fd) {
+    // Check if a file system is currently mounted
+    if (superblock == NULL || root_directory == NULL || fatblock == NULL) {
+        return -1;
+    }
+
+    // Check if the file descriptor is valid
+    if (fd < 0 || fd >= FS_OPEN_MAX_COUNT || strcmp(fileD[fd].filename, "") == 0) {
+        return -1; // Invalid file descriptor
+    }
+
+    // Retrieve the filename associated with the file descriptor
+    const char *filename = fileD[fd].filename;
+
+    // Search for the file in the root directory
+    for (int i = 0; i < FS_FILE_MAX_COUNT; i++) {
+        if (strcmp(root_directory[i].filename, filename) == 0) {
+            // Found the file, return its size
+            return root_directory[i].size;
+        }
+    }
+
+    // File not found in the root directory
+    return -1;
 }
 
-int fs_lseek(int fd, size_t offset)
-{
-	/* TODO: Phase 3 */
-	(void)fd;	  // Dummy variable to avoid unused parameter warning
-	(void)offset; // Dummy variable to avoid unused parameter warning
-	return 0;
+int fs_lseek(int fd, size_t offset) {
+    // Check if the file descriptor is valid
+    if (fd < 0 || fd >= FS_OPEN_MAX_COUNT) {
+        return -1; // Invalid file descriptor
+    }
+
+    // Set the offset of the file descriptor to the provided offset
+    fileD[fd].offset = offset;
+
+    return 0; // Success
 }
 
 int fs_write(int fd, void *buf, size_t count)
