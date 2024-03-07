@@ -11,6 +11,7 @@
 #define FS_FILE_MAX_COUNT 128
 #define FAT_EOC 0xFFFF
 #define FAT_SIZE 2048
+#define MIN(a, b) ((a) < (b) ? (a) : (b))
 
 struct Superblock
 {
@@ -517,9 +518,87 @@ int fs_write(int fd, void *buf, size_t count)
 
 int fs_read(int fd, void *buf, size_t count)
 {
-	/* TODO: Phase 4 */
-	(void)fd;	 // Dummy variable to avoid unused parameter warning
-	(void)buf;	 // Dummy variable to avoid unused parameter warning
-	(void)count; // Dummy variable to avoid unused parameter warning
-	return 0;
+	// Check if a file system is currently mounted and other basic checks
+	if (superblock == NULL || root_directory == NULL || fatblock == NULL)
+	{
+		return -1;
+	}
+
+	// Check if the file descriptor is valid
+	if (fd < 0 || fd >= FS_OPEN_MAX_COUNT || strcmp(fileD[fd].filename, "") == 0)
+	{
+		return -1; // Invalid file descriptor
+	}
+
+	// Check if the buffer is NULL
+	if (buf == NULL)
+	{
+		return -1; // Invalid buffer
+	}
+
+	// Retrieve the filename associated with the file descriptor
+	const char *filename = fileD[fd].filename;
+
+	// Get the starting offset and size of the file from your file system's metadata
+	size_t start_offset = fileD[fd].offset;
+	size_t file_size = get_file_size(filename);
+
+	// Ensure that the read operation doesn't exceed the file size
+	if (start_offset + count > file_size)
+	{
+		count = file_size - start_offset;
+	}
+
+	size_t start_block;
+	for (int i = 0; i < FS_FILE_MAX_COUNT; i++)
+	{
+		// check if the filename equals the arguments passed
+		if (strcmp(root_directory[i].filename, filename) == 0)
+		{
+			start_block = root_directory[i].first_block_data;
+		}
+	}
+
+	// Calculate the starting and ending block indices for the read operation
+	size_t num_blocks = file_size / BLOCK_SIZE;
+	size_t end_block = start_block + num_blocks;
+
+	size_t bytes_read = 0;
+	size_t remaining_bytes = count;
+	void *current_buf = buf;			   // Pointer to the current position in the buffer
+	void *bounce_buf = malloc(BLOCK_SIZE); // Allocate memory for bounce buffer
+
+	for (size_t block_index = start_block; block_index <= end_block; block_index++)
+	{
+		// Calculate the offset within the block for reading
+		size_t block_offset = (block_index == start_block) ? (start_offset % BLOCK_SIZE) : 0;
+
+		// Calculate the number of bytes to read from this block
+		size_t bytes_to_read = MIN(BLOCK_SIZE - block_offset, remaining_bytes);
+
+		// Read data from the block into the bounce buffer
+		if (block_read(superblock->data_start + block_index, bounce_buf) < 0)
+		{
+			free(bounce_buf); // Free memory allocated for bounce buffer before returning
+			return -1;		  // Error reading block
+		}
+
+		// Copy data from the bounce buffer to the user buffer
+		memcpy((char *)current_buf, (char *)bounce_buf + block_offset, bytes_to_read);
+
+		// Update the number of bytes read and remaining bytes to read
+		bytes_read += bytes_to_read;
+		remaining_bytes -= bytes_to_read;
+
+		// Move the buffer pointer to the next position
+		current_buf += bytes_to_read;
+	}
+
+	// Update the file offset in the file descriptor
+	fileD[fd].offset += bytes_read;
+
+	// Free memory allocated for the bounce buffer
+	free(bounce_buf);
+
+	return bytes_read; // Return the number of bytes actually read
 }
