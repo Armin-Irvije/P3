@@ -39,7 +39,7 @@ struct FatBlock
 
 struct FileDescriptor
 {
-	
+
 	char filename[FS_FILENAME_LEN];
 	int offset;
 };
@@ -141,14 +141,12 @@ int fs_info(void)
 	}
 
 	int fat_free_numerator = 0;
-	for (int i = 0; i < superblock->fat_blocks; i++)
+	for (int i = 0; i < superblock->data_blocks; i++)
 	{
-		for (int j = 0; j < FAT_SIZE; j++)
+
+		if (fatblock->entry[i] == 0)
 		{
-			if (fatblock[i].entry[j] == 0)
-			{
-				fat_free_numerator++;
-			}
+			fat_free_numerator++;
 		}
 	}
 
@@ -158,22 +156,22 @@ int fs_info(void)
 	// fatblock[1].entry[3] = 667;
 
 	// PRINT FAT BLOCKS
-	for (int block_index = 0; block_index < superblock->fat_blocks; block_index++)
-	{
-		printf("Block %d:\n", block_index);
+	// for (int block_index = 0; block_index < superblock->fat_blocks; block_index++)
+	// {
+	// 	printf("Block %d:\n", block_index);
 
-		// Get the current FAT block
-		struct FatBlock current_block = fatblock[block_index];
+	// 	// Get the current FAT block
+	// 	struct FatBlock current_block = fatblock[block_index];
 
-		// Iterate over each entry within the block
-		for (int entry_index = 0; entry_index < FAT_SIZE; entry_index++)
-		{
-			if (current_block.entry[entry_index] == FAT_EOC || current_block.entry[entry_index] != 0)
-			{
-				printf("Entry %d: %hu\n", entry_index, current_block.entry[entry_index]);
-			}
-		}
-	}
+	// 	// Iterate over each entry within the block
+	// 	for (int entry_index = 0; entry_index < FAT_SIZE; entry_index++)
+	// 	{
+	// 		if (current_block.entry[entry_index] == FAT_EOC || current_block.entry[entry_index] != 0)
+	// 		{
+	// 			printf("Entry %d: %hu\n", entry_index, current_block.entry[entry_index]);
+	// 		}
+	// 	}
+	// }
 	// /// PRINT FAT BLOCKS
 
 	// for (int i = 0; i < FS_FILE_MAX_COUNT; i++)
@@ -251,56 +249,6 @@ void fill_fat_entries(struct FatBlock *fatblock, uint16_t start_index, uint16_t 
 	fatblock->entry[end_index] = FAT_EOC;
 }
 
-// int fs_create(const char *filename)
-// {
-// 	// Find an empty entry in the root directory
-// 	int empty_entry_index = -1;
-// 	for (int i = 0; i < FS_FILE_MAX_COUNT; i++)
-// 	{
-// 		if (strcmp(root_directory[i].filename, "") == 0)
-// 		{
-// 			empty_entry_index = i;
-// 			break;
-// 		}
-// 	}
-
-// 	// If no empty entry is found, return -1
-// 	if (empty_entry_index == -1)
-// 	{
-// 		return -1;
-// 	}
-
-// 	// Fill out the empty entry with the new filename
-// 	strcpy(root_directory[empty_entry_index].filename, filename);
-// 	root_directory[empty_entry_index].size = 0;
-
-// 	int x;
-// 	for (int j = 0; j < FAT_SIZE * superblock->fat_blocks; j++)
-// 	{
-// 		if (fatblock->entry[j] == 0)
-// 		{
-// 			x = j;
-// 			break;
-// 		}
-// 	}
-// 	//fatblock->entry[x] = FAT_EOC;
-
-// 	int z = get_file_size(filename);
-
-// 	int num_fat_entries = z / BLOCK_SIZE;
-// 	if ((z % BLOCK_SIZE) != 0)
-// 	{
-// 		num_fat_entries++;
-// 	}
-//
-// 	fill_fat_entries(fatblock, x, num_fat_entries);
-
-// 	root_directory[empty_entry_index].size = z;
-// 	root_directory[empty_entry_index].first_block_data = x;
-
-// 	return 0;
-// }
-
 int fs_create(const char *filename)
 {
 	// Find an empty entry in the root directory
@@ -327,7 +275,16 @@ int fs_create(const char *filename)
 	int file_size = get_file_size(filename);
 	if (file_size == -1)
 	{
-		return -1;
+		return -1; // Error getting file size
+	}
+
+	// Check if the file size is zero
+	if (file_size == 0)
+	{
+		// For zero-sized files, no FAT blocks need to be allocated
+		root_directory[empty_entry_index].size = 0;
+		root_directory[empty_entry_index].first_block_data = FAT_EOC;
+		return 0; // Return success
 	}
 
 	// Calculate the number of blocks required to store the file
@@ -462,7 +419,7 @@ int fs_open(const char *filename)
 				if (strcmp(fileD[j].filename, "") == 0)
 				{ // check an empty spot
 					numOpen++;
-					//value++;
+					// value++;
 					strcpy(fileD[j].filename, filename);
 					fileD[j].offset = 0;
 
@@ -485,7 +442,7 @@ int fs_close(int fd)
 		if (strcmp(fileD[k].filename, "") != 0)
 		{
 
-			printf("index value: %d\n", fd);
+			// printf("index value: %d\n", fd);
 		}
 	}
 	// Check if the file descriptor is within valid range
@@ -498,47 +455,55 @@ int fs_close(int fd)
 	// Decrement the count of open files
 	numOpen--;
 
-	printf("index value: %d\n", fd);
+	// printf("index value: %d\n", fd);
 
 	return 0;
 }
 
-int fs_stat(int fd) {
-    // Check if a file system is currently mounted
-    if (superblock == NULL || root_directory == NULL || fatblock == NULL) {
-        return -1;
-    }
+// get offset/size here
+int fs_stat(int fd)
+{
+	// Check if a file system is currently mounted
+	if (superblock == NULL || root_directory == NULL || fatblock == NULL)
+	{
+		return -1;
+	}
 
-    // Check if the file descriptor is valid
-    if (fd < 0 || fd >= FS_OPEN_MAX_COUNT || strcmp(fileD[fd].filename, "") == 0) {
-        return -1; // Invalid file descriptor
-    }
+	// Check if the file descriptor is valid
+	if (fd < 0 || fd >= FS_OPEN_MAX_COUNT || strcmp(fileD[fd].filename, "") == 0)
+	{
+		return -1; // Invalid file descriptor
+	}
 
-    // Retrieve the filename associated with the file descriptor
-    const char *filename = fileD[fd].filename;
+	// Retrieve the filename associated with the file descriptor
+	const char *filename = fileD[fd].filename;
 
-    // Search for the file in the root directory
-    for (int i = 0; i < FS_FILE_MAX_COUNT; i++) {
-        if (strcmp(root_directory[i].filename, filename) == 0) {
-            // Found the file, return its size
-            return root_directory[i].size;
-        }
-    }
+	// Search for the file in the root directory
+	for (int i = 0; i < FS_FILE_MAX_COUNT; i++)
+	{
+		if (strcmp(root_directory[i].filename, filename) == 0)
+		{
+			// Found the file, return its size
+			return root_directory[i].size;
+		}
+	}
 
-    // File not found in the root directory
-    return -1;
+	// File not found in the root directory
+	return -1;
 }
+// actually change offset here
+int fs_lseek(int fd, size_t offset)
+{
+	// Check if the file descriptor is valid
+	if (fd < 0 || fd >= FS_OPEN_MAX_COUNT)
+	{
+		return -1; // Invalid file descriptor
+	}
 
-int fs_lseek(int fd, size_t offset) {
-    // Check if the file descriptor is valid
-    if (fd < 0 || fd >= FS_OPEN_MAX_COUNT) {
-        return -1; // Invalid file descriptor
-    }
+	// Set the offset of the file descriptor to the provided offset
+	fileD[fd].offset = offset;
 
-    // Set the offset of the file descriptor to the provided offset
-    fileD[fd].offset = offset;
-
-    return 0; // Success
+	return 0; // Success
 }
 
 int fs_write(int fd, void *buf, size_t count)
