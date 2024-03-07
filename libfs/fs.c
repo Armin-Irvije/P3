@@ -509,11 +509,74 @@ int fs_lseek(int fd, size_t offset)
 
 int fs_write(int fd, void *buf, size_t count)
 {
-	/* TODO: Phase 4 */
-	(void)fd;	 // Dummy variable to avoid unused parameter warning
-	(void)buf;	 // Dummy variable to avoid unused parameter warning
-	(void)count; // Dummy variable to avoid unused parameter warning
-	return 0;
+	// Check if a file system is currently mounted and other basic checks
+	if (superblock == NULL || root_directory == NULL || fatblock == NULL)
+	{
+		return -1;
+	}
+
+	// Check if the file descriptor is valid
+	if (fd < 0 || fd >= FS_OPEN_MAX_COUNT || strcmp(fileD[fd].filename, "") == 0)
+	{
+		return -1; // Invalid file descriptor
+	}
+
+	// Check if the buffer is NULL
+	if (buf == NULL)
+	{
+		return -1; // Invalid buffer
+	}
+
+	// Retrieve the filename associated with the file descriptor
+	const char *filename = fileD[fd].filename;
+
+	// Get the starting offset of the file from the file system's metadata
+	size_t start_offset = fileD[fd].offset;
+
+	size_t start_block;
+	for (int i = 0; i < FS_FILE_MAX_COUNT; i++)
+	{
+		// check if the filename equals the arguments passed
+		if (strcmp(root_directory[i].filename, filename) == 0)
+		{
+			start_block = root_directory[i].first_block_data;
+		}
+	}
+
+	// Calculate the starting and ending block indices for the write operation
+	size_t num_blocks = (count + BLOCK_SIZE - 1) / BLOCK_SIZE; // Round up division
+	size_t end_block = start_block + num_blocks - 1;
+
+	size_t bytes_written = 0;
+	size_t remaining_bytes = count;
+	void *current_buf = buf; // Pointer to the current position in the buffer
+
+	for (size_t block_index = start_block; block_index <= end_block; block_index++)
+	{
+		// Calculate the offset within the block for writing
+		size_t block_offset = (block_index == start_block) ? (start_offset % BLOCK_SIZE) : 0;
+
+		// Calculate the number of bytes to write to this block
+		size_t bytes_to_write = MIN(BLOCK_SIZE - block_offset, remaining_bytes);
+
+		// Write data from the buffer to the block on disk
+		if (block_write(superblock->data_start + block_index, (char *)current_buf) < 0)
+		{
+			return -1; // Error writing block
+		}
+
+		// Update the number of bytes written and remaining bytes to write
+		bytes_written += bytes_to_write;
+		remaining_bytes -= bytes_to_write;
+
+		// Move the buffer pointer to the next position
+		current_buf += bytes_to_write;
+	}
+
+	// Update the file offset in the file descriptor
+	fileD[fd].offset += bytes_written;
+
+	return bytes_written; // Return the number of bytes actually written
 }
 
 int fs_read(int fd, void *buf, size_t count)
