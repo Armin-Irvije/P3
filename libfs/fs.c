@@ -7,8 +7,6 @@
 #include "disk.h"
 #include "fs.h"
 
-#define FS_FILENAME_LEN 16
-#define FS_FILE_MAX_COUNT 128
 #define FAT_EOC 0xFFFF
 #define FAT_SIZE 2048
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
@@ -18,11 +16,11 @@ struct Superblock
 	char signature[8]; // Signature equal to "ECS150FS"
 	uint16_t total_blocks;
 	uint16_t root_index;
-	uint16_t data_start;   // Data block start index
-	uint16_t data_blocks;  // Amount of data blocks
-	uint8_t fat_blocks;	   // Number of blocks for FAT
-	uint8_t padding[4079]; // Unused/Padding
-} __attribute__((packed)); // Ensure correct layout
+	uint16_t data_start;   
+	uint16_t data_blocks;  
+	uint8_t fat_blocks;	  
+	uint8_t padding[4079]; 
+} __attribute__((packed)); 
 
 struct RootDirectory
 {
@@ -50,8 +48,6 @@ struct Superblock *superblock;
 struct RootDirectory root_directory[FS_FILE_MAX_COUNT]; // root directory array size 128
 struct FatBlock *fatblock;
 static struct FileDescriptor fileD[FS_OPEN_MAX_COUNT];
-
-// NUll character
 
 int fs_mount(const char *diskname)
 {
@@ -117,7 +113,6 @@ int fs_umount(void)
 		return -1;
 	}
 
-	// Free allocated memory
 	free(superblock);
 
 	return 0;
@@ -233,7 +228,7 @@ void fill_fat_entries(struct FatBlock *fatblock, uint16_t start_index, uint16_t 
 {
 	uint16_t current_index = start_index;
 
-	// Iterate through the FAT entries from start_index to end_index
+	
 	while (current_index != end_index)
 	{
 		// Calculate the next index
@@ -252,7 +247,11 @@ void fill_fat_entries(struct FatBlock *fatblock, uint16_t start_index, uint16_t 
 
 int fs_create(const char *filename)
 {
-	// Find an empty entry in the root directory
+	if (strlen(filename) * sizeof(char) > FS_FILENAME_LEN)
+	{
+		return -1; // filename too long
+	}
+
 	int empty_entry_index = -1;
 	for (int i = 0; i < FS_FILE_MAX_COUNT; i++)
 	{
@@ -382,7 +381,12 @@ int fs_delete(const char *filename)
 
 int fs_ls(void)
 {
-	/* TODO: Phase 2 */
+	if (block_disk_count() == -1)
+	{
+		fprintf(stderr, "No underlying virtual disk was opened\n");
+		return -1;
+	}
+
 	printf("FS Ls:\n");
 	for (int i = 0; i < FS_FILE_MAX_COUNT; i++)
 	{
@@ -397,11 +401,11 @@ int fs_ls(void)
 	}
 	return 0;
 }
+
 static int numOpen = 0;
-// global variables are not UNMOUNTING!!!
 int fs_open(const char *filename)
 {
-	/* TODO: Phase 3 */
+
 	// iterate through the root directory
 	if (numOpen > FS_OPEN_MAX_COUNT)
 	{
@@ -420,7 +424,6 @@ int fs_open(const char *filename)
 				if (strcmp(fileD[j].filename, "") == 0)
 				{ // check an empty spot
 					numOpen++;
-					// value++;
 					strcpy(fileD[j].filename, filename);
 					fileD[j].offset = 0;
 
@@ -430,33 +433,21 @@ int fs_open(const char *filename)
 		}
 	}
 
-	//(void)filename; // Dummy variable to avoid unused parameter warning
 	return -1;
 }
 
 int fs_close(int fd)
 {
-	/* TODO: Phase 3 */
-	for (int k = 0; k < FS_OPEN_MAX_COUNT; k++)
-	{
-
-		if (strcmp(fileD[k].filename, "") != 0)
-		{
-
-			// printf("index value: %d\n", fd);
-		}
-	}
 	// Check if the file descriptor is within valid range
 	if (fd < 0 || fd >= FS_OPEN_MAX_COUNT)
+	{
 		return -1;
-
+	}
 	// Reset values associated with the file descriptor
 	strcpy(fileD[fd].filename, "");
 	fileD[fd].offset = 0;
 	// Decrement the count of open files
 	numOpen--;
-
-	// printf("index value: %d\n", fd);
 
 	return 0;
 }
@@ -504,7 +495,7 @@ int fs_lseek(int fd, size_t offset)
 	// Set the offset of the file descriptor to the provided offset
 	fileD[fd].offset = offset;
 
-	return 0; // Success
+	return 0;
 }
 
 int fs_write(int fd, void *buf, size_t count)
@@ -524,13 +515,11 @@ int fs_write(int fd, void *buf, size_t count)
 	// Check if the buffer is NULL
 	if (buf == NULL)
 	{
-		return -1; // Invalid buffer
+		return -1;
 	}
 
 	// Retrieve the filename associated with the file descriptor
 	const char *filename = fileD[fd].filename;
-
-	// Get the starting offset of the file from the file system's metadata
 	size_t start_offset = fileD[fd].offset;
 
 	size_t start_block;
@@ -562,7 +551,7 @@ int fs_write(int fd, void *buf, size_t count)
 		// Write data from the buffer to the block on disk
 		if (block_write(superblock->data_start + block_index, (char *)current_buf) < 0)
 		{
-			return -1; // Error writing block
+			return -1;
 		}
 
 		// Update the number of bytes written and remaining bytes to write
@@ -576,7 +565,7 @@ int fs_write(int fd, void *buf, size_t count)
 	// Update the file offset in the file descriptor
 	fileD[fd].offset += bytes_written;
 
-	return bytes_written; // Return the number of bytes actually written
+	return bytes_written;
 }
 
 int fs_read(int fd, void *buf, size_t count)
@@ -596,7 +585,7 @@ int fs_read(int fd, void *buf, size_t count)
 	// Check if the buffer is NULL
 	if (buf == NULL)
 	{
-		return -1; // Invalid buffer
+		return -1;
 	}
 
 	// Retrieve the filename associated with the file descriptor
@@ -633,17 +622,17 @@ int fs_read(int fd, void *buf, size_t count)
 
 	for (size_t block_index = start_block; block_index <= end_block; block_index++)
 	{
-		// Calculate the offset within the block for reading
+		//Calculate the offset within the block for reading
 		size_t block_offset = (block_index == start_block) ? (start_offset % BLOCK_SIZE) : 0;
 
-		// Calculate the number of bytes to read from this block
+		//Calculate the number of bytes to read from this block
 		size_t bytes_to_read = MIN(BLOCK_SIZE - block_offset, remaining_bytes);
 
 		// Read data from the block into the bounce buffer
 		if (block_read(superblock->data_start + block_index, bounce_buf) < 0)
 		{
-			free(bounce_buf); // Free memory allocated for bounce buffer before returning
-			return -1;		  // Error reading block
+			free(bounce_buf);
+			return -1;
 		}
 
 		// Copy data from the bounce buffer to the user buffer
@@ -652,16 +641,14 @@ int fs_read(int fd, void *buf, size_t count)
 		// Update the number of bytes read and remaining bytes to read
 		bytes_read += bytes_to_read;
 		remaining_bytes -= bytes_to_read;
-
-		// Move the buffer pointer to the next position
 		current_buf += bytes_to_read;
 	}
 
-	// Update the file offset in the file descriptor
+	
 	fileD[fd].offset += bytes_read;
 
-	// Free memory allocated for the bounce buffer
+	
 	free(bounce_buf);
 
-	return bytes_read; // Return the number of bytes actually read
+	return bytes_read;
 }
