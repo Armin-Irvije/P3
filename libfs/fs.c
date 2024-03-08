@@ -157,7 +157,7 @@ int fs_info(void)
 
 int get_file_size(const char *filename)
 {
-	// Open the file in binary read mode
+	// Open the file 
 	FILE *file = fopen(filename, "rb");
 	if (file == NULL)
 	{
@@ -173,7 +173,6 @@ int get_file_size(const char *filename)
 		return -1;
 	}
 
-	// Get the size of the file
 	long file_size = ftell(file);
 	if (file_size == -1L)
 	{
@@ -182,9 +181,7 @@ int get_file_size(const char *filename)
 		return -1;
 	}
 
-	// Close the file
 	fclose(file);
-
 	return file_size;
 }
 
@@ -199,7 +196,6 @@ void fill_fat_entries(struct FatBlock *fatblock, uint16_t start_index, uint16_t 
 
 		// Set the current FAT entry to point to the next index
 		fatblock->entry[current_index] = next_index;
-
 		// Move to the next FAT entry
 		current_index = next_index;
 	}
