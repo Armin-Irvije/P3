@@ -137,7 +137,7 @@ int fs_info(void)
 	for (int i = 0; i < superblock->data_blocks; i++)
 	{
 
-		if (fatblock->entry[i] == 0)//find an fat entry that is free
+		if (fatblock->entry[i] == 0) // find an fat entry that is free
 		{
 			fat_free_numerator++;
 		}
@@ -157,7 +157,7 @@ int fs_info(void)
 
 int get_file_size(const char *filename)
 {
-	// Open the file 
+	// Open the file
 	FILE *file = fopen(filename, "rb");
 	if (file == NULL)
 	{
@@ -213,10 +213,11 @@ int fs_create(const char *filename)
 	int empty_entry_index = -1;
 	for (int i = 0; i < FS_FILE_MAX_COUNT; i++)
 	{
-		//its already in the directory
-		if (strcmp(root_directory[i].filename, filename) == 0) {
-            return -1; 
-        }
+		// its already in the directory
+		if (strcmp(root_directory[i].filename, filename) == 0)
+		{
+			return -1;
+		}
 		if (strcmp(root_directory[i].filename, "") == 0)
 		{
 			empty_entry_index = i;
@@ -413,7 +414,6 @@ int fs_stat(int fd)
 		return -1;
 	}
 
-	
 	const char *filename = fileD[fd].filename;
 
 	// Search for the file in the root directory
@@ -421,12 +421,12 @@ int fs_stat(int fd)
 	{
 		if (strcmp(root_directory[i].filename, filename) == 0)
 		{
-			//return its size
+			// return its size
 			return root_directory[i].size;
 		}
 	}
 
-	//File not found
+	// File not found
 	return -1;
 }
 
@@ -436,7 +436,7 @@ int fs_lseek(int fd, size_t offset)
 	// Check if the file descriptor is valid
 	if (fd < 0 || fd >= FS_OPEN_MAX_COUNT)
 	{
-		return -1; 
+		return -1;
 	}
 
 	fileD[fd].offset = offset;
@@ -445,19 +445,17 @@ int fs_lseek(int fd, size_t offset)
 
 int fs_write(int fd, void *buf, size_t count)
 {
-	
+
 	if (superblock == NULL || root_directory == NULL || fatblock == NULL)
 	{
 		return -1;
 	}
 
-	
 	if (fd < 0 || fd >= FS_OPEN_MAX_COUNT || strcmp(fileD[fd].filename, "") == 0)
 	{
-		return -1; 
+		return -1;
 	}
 
-	
 	if (buf == NULL)
 	{
 		return -1;
@@ -470,7 +468,7 @@ int fs_write(int fd, void *buf, size_t count)
 	size_t start_block;
 	for (int i = 0; i < FS_FILE_MAX_COUNT; i++)
 	{
-		
+
 		if (strcmp(root_directory[i].filename, filename) == 0)
 		{
 			start_block = root_directory[i].first_block_data;
@@ -480,19 +478,16 @@ int fs_write(int fd, void *buf, size_t count)
 	// Calculate the starting and ending block indices for the write operation
 	size_t num_blocks = (count + BLOCK_SIZE - 1) / BLOCK_SIZE; // Round up division
 	size_t end_block = start_block + num_blocks - 1;
-
 	size_t bytes_written = 0;
 	size_t remaining_bytes = count;
-	void *current_buf = buf; 
+	void *current_buf = buf;
 
 	for (size_t block_index = start_block; block_index <= end_block; block_index++)
 	{
-		//calculate the offset for writing
+		// calculate the offset for writing
 		size_t block_offset = (block_index == start_block) ? (start_offset % BLOCK_SIZE) : 0;
-
 		// find the number of bytes to write
 		size_t bytes_to_write = MIN(BLOCK_SIZE - block_offset, remaining_bytes);
-
 		// Write data from the buffer to the block on disk
 		if (block_write(superblock->data_start + block_index, (char *)current_buf) < 0)
 		{
@@ -511,7 +506,7 @@ int fs_write(int fd, void *buf, size_t count)
 
 int fs_read(int fd, void *buf, size_t count)
 {
-	//error checking
+	// error checking
 	if (superblock == NULL || root_directory == NULL || fatblock == NULL)
 	{
 		return -1;
@@ -529,11 +524,11 @@ int fs_read(int fd, void *buf, size_t count)
 
 	// Retrieve the filename associated with the file descriptor
 	const char *filename = fileD[fd].filename;
-	// Get the starting offset and size 
+	// Get the starting offset and size
 	size_t start_offset = fileD[fd].offset;
 	size_t file_size = get_file_size(filename);
 
-	//doesn't exceed the file size
+	// doesn't exceed the file size
 	if (start_offset + count > file_size)
 	{
 		count = file_size - start_offset;
@@ -542,7 +537,7 @@ int fs_read(int fd, void *buf, size_t count)
 	size_t start_block;
 	for (int i = 0; i < FS_FILE_MAX_COUNT; i++)
 	{
-		
+
 		if (strcmp(root_directory[i].filename, filename) == 0)
 		{
 			start_block = root_directory[i].first_block_data;
@@ -555,12 +550,12 @@ int fs_read(int fd, void *buf, size_t count)
 
 	size_t bytes_read = 0;
 	size_t remaining_bytes = count;
-	void *current_buf = buf;			   
-	void *bounce_buf = malloc(BLOCK_SIZE); //allocate memory
+	void *current_buf = buf;
+	void *bounce_buf = malloc(BLOCK_SIZE); // allocate memory
 
 	for (size_t block_index = start_block; block_index <= end_block; block_index++)
 	{
-		
+
 		size_t block_offset = (block_index == start_block) ? (start_offset % BLOCK_SIZE) : 0;
 		size_t bytes_to_read = MIN(BLOCK_SIZE - block_offset, remaining_bytes);
 		// Read data from the block into the bounce buffer
@@ -573,7 +568,7 @@ int fs_read(int fd, void *buf, size_t count)
 		// Copy data from the bounce buffer to the user
 		memcpy((char *)current_buf, (char *)bounce_buf + block_offset, bytes_to_read);
 
-		//update everything
+		// update everything
 		bytes_read += bytes_to_read;
 		remaining_bytes -= bytes_to_read;
 		current_buf += bytes_to_read;
