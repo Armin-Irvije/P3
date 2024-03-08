@@ -16,11 +16,11 @@ struct Superblock
 	char signature[8]; // Signature equal to "ECS150FS"
 	uint16_t total_blocks;
 	uint16_t root_index;
-	uint16_t data_start;   
-	uint16_t data_blocks;  
-	uint8_t fat_blocks;	  
-	uint8_t padding[4079]; 
-} __attribute__((packed)); 
+	uint16_t data_start;
+	uint16_t data_blocks;
+	uint8_t fat_blocks;
+	uint8_t padding[4079];
+} __attribute__((packed));
 
 struct RootDirectory
 {
@@ -38,7 +38,6 @@ struct FatBlock
 
 struct FileDescriptor
 {
-
 	char filename[FS_FILENAME_LEN];
 	int offset;
 };
@@ -106,7 +105,6 @@ int fs_umount(void)
 		}
 	}
 
-	// Close the virtual disk file
 	if (block_disk_close() == -1)
 	{
 		fprintf(stderr, "Failed to close virtual disk file\n");
@@ -114,7 +112,6 @@ int fs_umount(void)
 	}
 
 	free(superblock);
-
 	return 0;
 }
 
@@ -140,44 +137,11 @@ int fs_info(void)
 	for (int i = 0; i < superblock->data_blocks; i++)
 	{
 
-		if (fatblock->entry[i] == 0)
+		if (fatblock->entry[i] == 0)//find an fat entry that is free
 		{
 			fat_free_numerator++;
 		}
 	}
-
-	// root_directory->entries[empty_entry_index].first_block_data = FAT_EOC;
-	// fatblock->entry[2049] = 69;
-	// fatblock->entry[2050] = 666;
-	// fatblock[1].entry[3] = 667;
-
-	// PRINT FAT BLOCKS
-	// for (int block_index = 0; block_index < superblock->fat_blocks; block_index++)
-	// {
-	// 	printf("Block %d:\n", block_index);
-
-	// 	// Get the current FAT block
-	// 	struct FatBlock current_block = fatblock[block_index];
-
-	// 	// Iterate over each entry within the block
-	// 	for (int entry_index = 0; entry_index < FAT_SIZE; entry_index++)
-	// 	{
-	// 		if (current_block.entry[entry_index] == FAT_EOC || current_block.entry[entry_index] != 0)
-	// 		{
-	// 			printf("Entry %d: %hu\n", entry_index, current_block.entry[entry_index]);
-	// 		}
-	// 	}
-	// }
-	// /// PRINT FAT BLOCKS
-
-	// for (int i = 0; i < FS_FILE_MAX_COUNT; i++)
-	// {
-	// 	// Check if the filename is not empty
-	// 	if (root_directory[i].filename[0] != '\0')
-	// 	{
-	// 		printf("Entry %d: first_block_data = %hu\n", i, root_directory[i].first_block_data);
-	// 	}
-	// }
 
 	printf("FS Info:\n");
 	printf("total_blk_count=%d\n", block_disk_count());
@@ -228,10 +192,9 @@ void fill_fat_entries(struct FatBlock *fatblock, uint16_t start_index, uint16_t 
 {
 	uint16_t current_index = start_index;
 
-	
 	while (current_index != end_index)
 	{
-		// Calculate the next index
+
 		uint16_t next_index = current_index + 1;
 
 		// Set the current FAT entry to point to the next index
@@ -241,7 +204,6 @@ void fill_fat_entries(struct FatBlock *fatblock, uint16_t start_index, uint16_t 
 		current_index = next_index;
 	}
 
-	// Set the last FAT entry to FAT_EOC
 	fatblock->entry[end_index] = FAT_EOC;
 }
 
@@ -249,12 +211,16 @@ int fs_create(const char *filename)
 {
 	if (strlen(filename) * sizeof(char) > FS_FILENAME_LEN)
 	{
-		return -1; // filename too long
+		return -1;
 	}
 
 	int empty_entry_index = -1;
 	for (int i = 0; i < FS_FILE_MAX_COUNT; i++)
 	{
+		//its already in the directory
+		if (strcmp(root_directory[i].filename, filename) == 0) {
+            return -1; 
+        }
 		if (strcmp(root_directory[i].filename, "") == 0)
 		{
 			empty_entry_index = i;
@@ -262,29 +228,25 @@ int fs_create(const char *filename)
 		}
 	}
 
-	// If no empty entry is found, return -1
 	if (empty_entry_index == -1)
 	{
 		return -1;
 	}
 
-	// Fill out the empty entry with the new filename
 	strcpy(root_directory[empty_entry_index].filename, filename);
 
-	// Get the size of the file
 	int file_size = get_file_size(filename);
 	if (file_size == -1)
 	{
-		return -1; // Error getting file size
+		return -1;
 	}
 
-	// Check if the file size is zero
 	if (file_size == 0)
 	{
-		// For zero-sized files, no FAT blocks need to be allocated
+		// for zero sized files, no FAT blocks need to be allocated
 		root_directory[empty_entry_index].size = 0;
 		root_directory[empty_entry_index].first_block_data = FAT_EOC;
-		return 0; // Return success
+		return 0;
 	}
 
 	// Calculate the number of blocks required to store the file
@@ -306,14 +268,11 @@ int fs_create(const char *filename)
 	}
 	if (start_block == -1)
 	{
-		return -1; // No empty slot found in the FAT
+		return -1;
 	}
 
-	// Write the file size and start block information to the root directory entry
-	root_directory[empty_entry_index].size = file_size;
+	root_directory[empty_entry_index].size = file_size; // Write the file size and start block information to the root directory entry
 	root_directory[empty_entry_index].first_block_data = start_block;
-
-	// Fill FAT entries for the file
 	fill_fat_entries(fatblock, start_block, start_block + num_blocks - 1);
 
 	return 0;
@@ -326,35 +285,28 @@ void clear_fat_entries(struct FatBlock *fatblock, uint16_t entry_index)
 	// Iterate through the FAT entries until FAT_EOC is encountered
 	while (fatblock->entry[index] != FAT_EOC)
 	{
-		// Store the current FAT entry
 		uint16_t current_entry = fatblock->entry[index];
-
-		// Clear the current FAT entry by setting it to zero
 		fatblock->entry[index] = 0;
-
-		// Move to the next FAT entry
 		index = current_entry;
 	}
 
-	// Check if the current entry is FAT_EOC
-	if (fatblock->entry[index] == FAT_EOC)
+	if (fatblock->entry[index] == FAT_EOC) // Check if the current entry is EOC
 	{
-		// If it is, set the FAT_EOC entry to zero and break out of the loop
+		// set the FAT_EOC entry to zero and break out of the loop
 		fatblock->entry[index] = 0;
 	}
 }
 
 int fs_delete(const char *filename)
 {
-	// Check if no file system is currently mounted
+
 	if (root_directory == NULL || superblock == NULL)
 	{
 		return -1;
 	}
 
-	// Search for the file in the root directory
 	int file_index = -1;
-	for (int i = 0; i < FS_FILE_MAX_COUNT; i++)
+	for (int i = 0; i < FS_FILE_MAX_COUNT; i++) // search for the file in the root directory
 	{
 		if (strcmp(root_directory[i].filename, filename) == 0)
 		{
@@ -363,7 +315,6 @@ int fs_delete(const char *filename)
 		}
 	}
 
-	// Return -1 if the filename is invalid or not found
 	if (file_index == -1)
 	{
 		return -1;
@@ -390,7 +341,7 @@ int fs_ls(void)
 	printf("FS Ls:\n");
 	for (int i = 0; i < FS_FILE_MAX_COUNT; i++)
 	{
-		// Check if the filename is empty, indicating an empty entry
+		// Check if an empty entry
 		if (strcmp(root_directory[i].filename, "") != 0)
 		{
 
@@ -406,10 +357,10 @@ static int numOpen = 0;
 int fs_open(const char *filename)
 {
 
-	// iterate through the root directory
+	// error checking
 	if (numOpen > FS_OPEN_MAX_COUNT)
 	{
-		return -1; // too many files open
+		return -1;
 	}
 
 	for (int i = 0; i < FS_FILE_MAX_COUNT; i++)
@@ -438,7 +389,7 @@ int fs_open(const char *filename)
 
 int fs_close(int fd)
 {
-	// Check if the file descriptor is within valid range
+	// Check if the file descriptor is within range
 	if (fd < 0 || fd >= FS_OPEN_MAX_COUNT)
 	{
 		return -1;
@@ -446,7 +397,6 @@ int fs_close(int fd)
 	// Reset values associated with the file descriptor
 	strcpy(fileD[fd].filename, "");
 	fileD[fd].offset = 0;
-	// Decrement the count of open files
 	numOpen--;
 
 	return 0;
@@ -455,19 +405,19 @@ int fs_close(int fd)
 // get offset/size here
 int fs_stat(int fd)
 {
-	// Check if a file system is currently mounted
+	// error check
 	if (superblock == NULL || root_directory == NULL || fatblock == NULL)
 	{
 		return -1;
 	}
 
-	// Check if the file descriptor is valid
+	// error check
 	if (fd < 0 || fd >= FS_OPEN_MAX_COUNT || strcmp(fileD[fd].filename, "") == 0)
 	{
-		return -1; // Invalid file descriptor
+		return -1;
 	}
 
-	// Retrieve the filename associated with the file descriptor
+	
 	const char *filename = fileD[fd].filename;
 
 	// Search for the file in the root directory
@@ -475,57 +425,56 @@ int fs_stat(int fd)
 	{
 		if (strcmp(root_directory[i].filename, filename) == 0)
 		{
-			// Found the file, return its size
+			//return its size
 			return root_directory[i].size;
 		}
 	}
 
-	// File not found in the root directory
+	//File not found
 	return -1;
 }
+
 // actually change offset here
 int fs_lseek(int fd, size_t offset)
 {
 	// Check if the file descriptor is valid
 	if (fd < 0 || fd >= FS_OPEN_MAX_COUNT)
 	{
-		return -1; // Invalid file descriptor
+		return -1; 
 	}
 
-	// Set the offset of the file descriptor to the provided offset
 	fileD[fd].offset = offset;
-
 	return 0;
 }
 
 int fs_write(int fd, void *buf, size_t count)
 {
-	// Check if a file system is currently mounted and other basic checks
+	
 	if (superblock == NULL || root_directory == NULL || fatblock == NULL)
 	{
 		return -1;
 	}
 
-	// Check if the file descriptor is valid
+	
 	if (fd < 0 || fd >= FS_OPEN_MAX_COUNT || strcmp(fileD[fd].filename, "") == 0)
 	{
-		return -1; // Invalid file descriptor
+		return -1; 
 	}
 
-	// Check if the buffer is NULL
+	
 	if (buf == NULL)
 	{
 		return -1;
 	}
 
-	// Retrieve the filename associated with the file descriptor
+	// Retrieve the filename associated with the fd
 	const char *filename = fileD[fd].filename;
 	size_t start_offset = fileD[fd].offset;
 
 	size_t start_block;
 	for (int i = 0; i < FS_FILE_MAX_COUNT; i++)
 	{
-		// check if the filename equals the arguments passed
+		
 		if (strcmp(root_directory[i].filename, filename) == 0)
 		{
 			start_block = root_directory[i].first_block_data;
@@ -538,14 +487,14 @@ int fs_write(int fd, void *buf, size_t count)
 
 	size_t bytes_written = 0;
 	size_t remaining_bytes = count;
-	void *current_buf = buf; // Pointer to the current position in the buffer
+	void *current_buf = buf; 
 
 	for (size_t block_index = start_block; block_index <= end_block; block_index++)
 	{
-		// Calculate the offset within the block for writing
+		//calculate the offset for writing
 		size_t block_offset = (block_index == start_block) ? (start_offset % BLOCK_SIZE) : 0;
 
-		// Calculate the number of bytes to write to this block
+		// find the number of bytes to write
 		size_t bytes_to_write = MIN(BLOCK_SIZE - block_offset, remaining_bytes);
 
 		// Write data from the buffer to the block on disk
@@ -554,35 +503,29 @@ int fs_write(int fd, void *buf, size_t count)
 			return -1;
 		}
 
-		// Update the number of bytes written and remaining bytes to write
+		// Update everything
 		bytes_written += bytes_to_write;
 		remaining_bytes -= bytes_to_write;
-
-		// Move the buffer pointer to the next position
 		current_buf += bytes_to_write;
 	}
 
-	// Update the file offset in the file descriptor
 	fileD[fd].offset += bytes_written;
-
 	return bytes_written;
 }
 
 int fs_read(int fd, void *buf, size_t count)
 {
-	// Check if a file system is currently mounted and other basic checks
+	//error checking
 	if (superblock == NULL || root_directory == NULL || fatblock == NULL)
 	{
 		return -1;
 	}
 
-	// Check if the file descriptor is valid
 	if (fd < 0 || fd >= FS_OPEN_MAX_COUNT || strcmp(fileD[fd].filename, "") == 0)
 	{
-		return -1; // Invalid file descriptor
+		return -1;
 	}
 
-	// Check if the buffer is NULL
 	if (buf == NULL)
 	{
 		return -1;
@@ -590,12 +533,11 @@ int fs_read(int fd, void *buf, size_t count)
 
 	// Retrieve the filename associated with the file descriptor
 	const char *filename = fileD[fd].filename;
-
-	// Get the starting offset and size of the file from your file system's metadata
+	// Get the starting offset and size 
 	size_t start_offset = fileD[fd].offset;
 	size_t file_size = get_file_size(filename);
 
-	// Ensure that the read operation doesn't exceed the file size
+	//doesn't exceed the file size
 	if (start_offset + count > file_size)
 	{
 		count = file_size - start_offset;
@@ -604,7 +546,7 @@ int fs_read(int fd, void *buf, size_t count)
 	size_t start_block;
 	for (int i = 0; i < FS_FILE_MAX_COUNT; i++)
 	{
-		// check if the filename equals the arguments passed
+		
 		if (strcmp(root_directory[i].filename, filename) == 0)
 		{
 			start_block = root_directory[i].first_block_data;
@@ -617,17 +559,14 @@ int fs_read(int fd, void *buf, size_t count)
 
 	size_t bytes_read = 0;
 	size_t remaining_bytes = count;
-	void *current_buf = buf;			   // Pointer to the current position in the buffer
-	void *bounce_buf = malloc(BLOCK_SIZE); // Allocate memory for bounce buffer
+	void *current_buf = buf;			   
+	void *bounce_buf = malloc(BLOCK_SIZE); //allocate memory
 
 	for (size_t block_index = start_block; block_index <= end_block; block_index++)
 	{
-		//Calculate the offset within the block for reading
+		
 		size_t block_offset = (block_index == start_block) ? (start_offset % BLOCK_SIZE) : 0;
-
-		//Calculate the number of bytes to read from this block
 		size_t bytes_to_read = MIN(BLOCK_SIZE - block_offset, remaining_bytes);
-
 		// Read data from the block into the bounce buffer
 		if (block_read(superblock->data_start + block_index, bounce_buf) < 0)
 		{
@@ -635,20 +574,16 @@ int fs_read(int fd, void *buf, size_t count)
 			return -1;
 		}
 
-		// Copy data from the bounce buffer to the user buffer
+		// Copy data from the bounce buffer to the user
 		memcpy((char *)current_buf, (char *)bounce_buf + block_offset, bytes_to_read);
 
-		// Update the number of bytes read and remaining bytes to read
+		//update everything
 		bytes_read += bytes_to_read;
 		remaining_bytes -= bytes_to_read;
 		current_buf += bytes_to_read;
 	}
 
-	
 	fileD[fd].offset += bytes_read;
-
-	
 	free(bounce_buf);
-
 	return bytes_read;
 }

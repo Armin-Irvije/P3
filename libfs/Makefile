@@ -1,21 +1,24 @@
-# library
+# Variables
 lib := libfs.a
-
 CC := gcc
 CFLAGS := -Wall -Wextra -Werror
-
-# Source files
-
 source := disk.c fs.c
 obj := $(source:.c=.o)
+deps := $(obj:.o=.d)
 
+#M ain
 all: $(lib)
-#puts the object files into the library
-$(lib): $(obj)
-	ar rcs $@ $^ 
 
+#object files
 %.o: %.c
 	$(CC) $(CFLAGS) -c -o $@ $<
-#clean all object files
+
+# Library creation
+$(lib): $(obj)
+	ar rcs $@ $^
+
+#dependency tracking
+-include $(deps)
+
 clean:
-	rm -f *~ $(obj) $(lib)
+	rm -f *~ $(obj) $(lib) $(deps)
