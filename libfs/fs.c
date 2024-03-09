@@ -53,7 +53,6 @@ int fs_mount(const char *diskname)
 	// Open the virtual disk file
 	if (block_disk_open(diskname) == -1)
 	{
-		fprintf(stderr, "Failed to open virtual disk file %s\n", diskname);
 		return -1;
 	}
 
@@ -61,13 +60,11 @@ int fs_mount(const char *diskname)
 	superblock = (struct Superblock *)malloc(sizeof(struct Superblock));
 	if (block_read(0, superblock) == -1)
 	{
-		fprintf(stderr, "Failed to read superblock from disk\n");
 		return -1;
 	}
 
 	if (block_read(superblock->root_index, root_directory) < 0)
 	{
-		printf("fs_mount: read root dir error\n");
 		return -1;
 	}
 
@@ -78,7 +75,6 @@ int fs_mount(const char *diskname)
 	{
 		if (block_read(i, (char *)fatblock + BLOCK_SIZE * (i - 1)))
 		{
-			printf("fs_mount: read FAT block %d error\n", i);
 			return -1;
 		}
 	}
@@ -92,7 +88,6 @@ int fs_umount(void)
 
 	if (block_write(superblock->root_index, root_directory) < 0)
 	{
-		printf("fs_mount: read root dir error\n");
 		return -1;
 	}
 
@@ -100,14 +95,12 @@ int fs_umount(void)
 	{
 		if (block_write(i, (char *)fatblock + BLOCK_SIZE * (i - 1)))
 		{
-			printf("fs_mount: read FAT block %d error\n", i);
 			return -1;
 		}
 	}
 
 	if (block_disk_close() == -1)
 	{
-		fprintf(stderr, "Failed to close virtual disk file\n");
 		return -1;
 	}
 
@@ -119,7 +112,6 @@ int fs_info(void)
 {
 	if (block_disk_count() == -1)
 	{
-		fprintf(stderr, "No underlying virtual disk was opened\n");
 		return -1;
 	}
 
@@ -161,14 +153,12 @@ int get_file_size(const char *filename)
 	FILE *file = fopen(filename, "rb");
 	if (file == NULL)
 	{
-		perror("Error opening file");
 		return -1;
 	}
 
 	// Move the file pointer to the end of the file
 	if (fseek(file, 0, SEEK_END) != 0)
 	{
-		perror("Error seeking file");
 		fclose(file);
 		return -1;
 	}
@@ -176,7 +166,6 @@ int get_file_size(const char *filename)
 	long file_size = ftell(file);
 	if (file_size == -1L)
 	{
-		perror("Error getting file size");
 		fclose(file);
 		return -1;
 	}
@@ -331,7 +320,6 @@ int fs_ls(void)
 {
 	if (block_disk_count() == -1)
 	{
-		fprintf(stderr, "No underlying virtual disk was opened\n");
 		return -1;
 	}
 
